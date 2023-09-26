@@ -1,6 +1,6 @@
 /**
  * @file   tm.c
- * @author [...]
+ * @author Emmanouil (Manos) Chatzakis
  *
  * @section LICENSE
  *
