@@ -27,48 +27,100 @@
 
 #include "macros.h"
 
+/**
+ * @brief Segment of dynamically allocated memory.
+ * 
+ */
+typedef struct segment_node {
+    struct segment_node* prev;
+    struct segment_node* next;
+    // uint8_t segment[] // segment of dynamic size
+}segment_node_t;
+
+
+/**
+ * @brief Struct representing a transactional shared-memory region.
+ * 
+ */
+typedef struct region{
+    void* start;
+
+    size_t size;
+    size_t align;
+
+    segment_node_t* allocs;
+} region_t;
+
+typedef region_t stm_t;
+
+
 /** Create (i.e. allocate + init) a new shared memory region, with one first non-free-able allocated segment of the requested size and alignment.
  * @param size  Size of the first shared segment of memory to allocate (in bytes), must be a positive multiple of the alignment
  * @param align Alignment (in bytes, must be a power of 2) that the shared memory region must support
  * @return Opaque shared memory region handle, 'invalid_shared' on failure
 **/
-shared_t tm_create(size_t unused(size), size_t unused(align)) {
+shared_t tm_create(size_t size, size_t align) {
     // TODO: tm_create(size_t, size_t)
-    return invalid_shared;
+    
+    // Allocate memory for the region struct fields
+    region_t *region = (region_t*) malloc(sizeof(region_t));
+    if (unlikely(!region)) {
+        return invalid_shared;
+    }
+
+    // Allign and allocate memory for the shared memory region
+    if (posix_memalign(&(region->start), align, size) != 0) {
+        free(region);
+        return invalid_shared;
+    }
+
+    // Initialize the region struct fields
+    memset(region->start, 0, size);
+    region->size = size;
+    region->align = align;
+    region->allocs = NULL;
+
+    return region;
 }
 
 /** Destroy (i.e. clean-up + free) a given shared memory region.
  * @param shared Shared memory region to destroy, with no running transaction
 **/
-void tm_destroy(shared_t unused(shared)) {
+void tm_destroy(shared_t shared) {
     // TODO: tm_destroy(shared_t)
+    region_t *region = (region_t*) shared;
+    
+
+
+    free(region->start);
+    free(region);
 }
 
 /** [thread-safe] Return the start address of the first allocated segment in the shared memory region.
  * @param shared Shared memory region to query
  * @return Start address of the first allocated segment
 **/
-void* tm_start(shared_t unused(shared)) {
+void* tm_start(shared_t shared) {
     // TODO: tm_start(shared_t)
-    return NULL;
+    return ((region_t *) shared)->start;
 }
 
 /** [thread-safe] Return the size (in bytes) of the first allocated segment of the shared memory region.
  * @param shared Shared memory region to query
  * @return First allocated segment size
 **/
-size_t tm_size(shared_t unused(shared)) {
+size_t tm_size(shared_t shared) {
     // TODO: tm_size(shared_t)
-    return 0;
+    ((region_t *) shared)->size;
 }
 
 /** [thread-safe] Return the alignment (in bytes) of the memory accesses on the given shared memory region.
  * @param shared Shared memory region to query
  * @return Alignment used globally
 **/
-size_t tm_align(shared_t unused(shared)) {
+size_t tm_align(shared_t shared) {
     // TODO: tm_align(shared_t)
-    return 0;
+    return ((region_t *) shared)->align;
 }
 
 /** [thread-safe] Begin a new transaction on the given shared memory region.
