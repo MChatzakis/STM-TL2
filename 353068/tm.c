@@ -29,35 +29,9 @@
 #include <lock.h>
 #include <macros.h>
 #include <word.h>
+#include <tm_types.h>
 
 #include "macros.h"
-
-/**
- * @brief Segment of dynamically allocated memory.
- *
- */
-typedef struct segment
-{
-    struct segment *prev;
-    struct segment *next;
-    // uint8_t segment[] // segment of dynamic size
-} segment_t;
-
-/**
- * @brief Struct representing a transactional shared-memory region.
- *
- */
-typedef struct region
-{
-    void *start;
-
-    size_t size;
-    size_t align;
-
-    segment_t *allocs;
-
-    batcher_t batcher;
-} region_t;
 
 /** Create (i.e. allocate + init) a new shared memory region, with one first non-free-able allocated segment of the requested size and alignment.
  * @param size  Size of the first shared segment of memory to allocate (in bytes), must be a positive multiple of the alignment
@@ -138,10 +112,18 @@ size_t tm_align(shared_t shared)
  * @param is_ro  Whether the transaction is read-only
  * @return Opaque transaction ID, 'invalid_tx' on failure
  **/
-tx_t tm_begin(shared_t unused(shared), bool unused(is_ro))
+tx_t tm_begin(shared_t shared, bool is_ro)
 {
     // TODO: tm_begin(shared_t)
-    return invalid_tx;
+    region_t *region = (region_t *)shared;
+
+    batcher_t_enter(&region->batcher);
+
+    tx_t new_tx_t = region->tx_count;
+    region->tx_count;
+
+    return new_tx_t;
+    //return invalid_tx;
 }
 
 /** [thread-safe] End the given transaction.
@@ -152,7 +134,13 @@ tx_t tm_begin(shared_t unused(shared), bool unused(is_ro))
 bool tm_end(shared_t unused(shared), tx_t unused(tx))
 {
     // TODO: tm_end(shared_t, tx_t)
-    return false;
+    region_t *region = (region_t *)shared;
+    
+    bool commit_res = false;//tm_commit();
+
+    batcher_t_exit(&region->batcher);
+
+    return commit_res;
 }
 
 /** [thread-safe] Read operation in the given transaction, source in the shared region and target in a private region.
@@ -163,10 +151,26 @@ bool tm_end(shared_t unused(shared), tx_t unused(tx))
  * @param target Target start address (in a private region)
  * @return Whether the whole transaction can continue
  **/
-bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *unused(source), size_t unused(size), void *unused(target))
+bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *source, size_t size, void *target)
 {
     // TODO: tm_read(shared_t, tx_t, void const*, size_t, void*)
-    return false;
+    region_t *region = (region_t *)shared;
+    segment_t *sn = (segment_t *)((uintptr_t)source - sizeof(segment_t));
+    word_t **segment_words = (word_t **)source;
+
+    size_t words_to_read = size / region->align;
+
+    for (int word_index = 0; word_index < words_to_read; word_index++)
+    {
+        uintptr_t offset = word_index * sizeof(word_t);
+        bool result = word_t_read(segment_words[word_index], ((uintptr_t)target + offset), false);
+        if (!result)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /** [thread-safe] Write operation in the given transaction, source in a private region and target in the shared region.
@@ -177,10 +181,26 @@ bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *unused(source
  * @param target Target start address (in the shared region)
  * @return Whether the whole transaction can continue
  **/
-bool tm_write(shared_t unused(shared), tx_t unused(tx), void const *unused(source), size_t unused(size), void *unused(target))
+bool tm_write(shared_t shared, tx_t unused(tx), void const *source, size_t size, void *target)
 {
     // TODO: tm_write(shared_t, tx_t, void const*, size_t, void*)
-    return false;
+    region_t *region = (region_t *)shared;
+    segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t));
+    word_t **segment_words = (word_t **)target;
+
+    size_t words_to_read = size / region->align;
+
+    for (int word_index = 0; word_index < words_to_read; word_index++)
+    {
+        uintptr_t offset = word_index * sizeof(word_t);
+        bool result = word_t_write(segment_words[word_index], ((uintptr_t)source + offset), false);
+        if (!result)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /** [thread-safe] Memory allocation in the given transaction.
@@ -214,24 +234,26 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
         sn->next->prev = sn;
     ((struct region *)shared)->allocs = sn;
 
-    word_t **segment_words = ((uintptr_t) sn + sizeof(segment_t));
+    word_t **segment_words = ((uintptr_t)sn + sizeof(segment_t));
     memset(segment_words, 0, words_size);
 
-    for(int word_index=0; word_index<words_size; word_index++){
-        segment_words[word_index] = (word_t *) malloc(sizeof(word_t));
+    for (int word_index = 0; word_index < words_size; word_index++)
+    {
+        segment_words[word_index] = (word_t *)malloc(sizeof(word_t));
         if (unlikely(!segment_words[word_index]))
         {
             return nomem_alloc;
         }
-
+        // Change to mem set
         segment_words[word_index]->copyA = NULL;
         segment_words[word_index]->copyB = NULL;
         segment_words[word_index]->valid_copy = 0;
         segment_words[word_index]->modified = 0;
         segment_words[word_index]->write_set = -1;
+
+        memset(segment_words, word_index, 0, sizeof(word_t));
     }
-    
-    
+
     *target = segment_words;
     return success_alloc;
 }
@@ -242,8 +264,28 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
  * @param target Address of the first byte of the previously allocated segment to deallocate
  * @return Whether the whole transaction can continue
  **/
-bool tm_free(shared_t unused(shared), tx_t unused(tx), void *unused(target))
+bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 {
     // TODO: tm_free(shared_t, tx_t, void*)
-    return false;
+    segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t));
+    word_t **segment_words = (word_t **)target;
+
+    // Deallocate the words
+    for (int word_index = 0; word_index < sn->words_num; word_index++)
+    {
+        free(segment_words[word_index]);
+    }
+
+    // Remove Segment from the linked list
+    if (sn->prev)
+        sn->prev->next = sn->next;
+    else
+        ((struct region *)shared)->allocs = sn->next;
+    if (sn->next)
+        sn->next->prev = sn->prev;
+
+    // Free the segment struct
+    free(sn);
+
+    return true;
 }

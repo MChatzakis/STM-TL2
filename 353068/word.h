@@ -1,13 +1,16 @@
 #pragma once
 
+#include <stdbool.h>
 
 typedef struct tm_word{
-    char modified;
-    char valid_copy;
+    bool modified;
+    bool valid_copy;
     
-    int write_set;
+    tx_t write_set;
 
     void* copyA;
     void* copyB;
 }word_t;
 
+bool word_t_read(word_t* word, void* target, bool is_ro);
+bool word_t_write(word_t* word, void* target, bool is_ro);
