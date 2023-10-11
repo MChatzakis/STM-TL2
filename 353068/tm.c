@@ -21,138 +21,27 @@
 #endif
 
 // External headers
+#include <pthread.h>
 
 // Internal headers
 #include <tm.h>
+#include <batcher.h>
+#include <lock.h>
+#include <macros.h>
+#include <word.h>
 
 #include "macros.h"
-#include "pthread.h"
-
-typedef struct lock
-{
-    pthread_mutex_t mutex;
-} lock_t;
-
-int lock_t_get(lock_t *lock);
-int lock_t_release(lock_t *lock);
-int lock_t_init(lock_t *lock);
-int lock_t_destroy(lock_t *lock);
-int lock_t_condition(pthread_cond_t *cond_var, lock_t *lock);
-int lock_t_wake_up(pthread_cond_t *cond_var);
-
-int lock_t_get(lock_t *lock)
-{
-    return (pthread_mutex_lock(&lock->mutex) == 0);
-}
-
-int lock_t_release(lock_t *lock)
-{
-    return (pthread_mutex_unlock(&lock->mutex) == 0);
-}
-
-int lock_t_init(lock_t *lock)
-{
-    return (pthread_mutex_init(&lock->mutex, NULL) == 0);
-}
-
-int lock_t_destroy(lock_t *lock)
-{
-    return (pthread_mutex_destroy(&lock->mutex) == 0);
-}
-
-int lock_t_condition(pthread_cond_t *cond_var, lock_t *lock)
-{
-    return (pthread_cond_wait(cond_var, &lock->mutex) == 0);
-}
-
-int lock_t_wake_up(pthread_cond_t *cond_var)
-{
-    return (pthread_cond_broadcast(cond_var) == 0);
-}
-
-
-typedef struct batcher
-{
-    int counter;   // Epoch indicator
-    int remaining; // How many threads are still in the epoch (after enter())
-    int blocked;   // How many threads are blocked on enter()
-
-    lock_t lock; // Lock to access the field of batcher
-    pthread_cond_t blocking_condition; // Condition variable to block threads on enter()
-} batcher_t;
-
-void batcher_t_enter(batcher_t *batcher);
-void batcher_t_exit(batcher_t *batcher);
-void batcher_t_get_epoch(batcher_t *batcher);
-void batcher_t_destroy(batcher_t *batcher);
-
-void batcher_t_enter(batcher_t *batcher)
-{
-    lock_t_get(&batcher->lock);
-
-    if (batcher->remaining == 0)
-    {
-        batcher->remaining = 1;
-    }
-    else
-    {
-        batcher->blocked++;
-
-        // This function releases the lock and blocks the calling thread
-        lock_t_condition(&batcher->blocking_condition, &batcher->lock);
-    }
-
-    lock_t_release(&batcher->lock);
-}
-
-void batcher_t_exit(batcher_t *batcher)
-{
-    get_lock(batcher->lock);
-    
-    // Thread exit the region
-    batcher->remaining--;
-
-    // If this is the last thread of the batch, we need special handling
-    if (batcher->remaining == 0)
-    {   
-        // Update statistics and shared variables
-        batcher->counter++; // Next epoch
-        batcher->remaining = batcher->blocked; // Blocked threads will enter the next epoch
-        batcher->blocked = 0; // Stopeed threads are not blocked anymore
-
-        // Wake up all threads that are blocked on enter()
-        lock_t_wake_up(&batcher->blocking_condition);
-    }
-
-    release_lock(batcher->lock);
-}
-
-void batcher_t_get_epoch(batcher_t *batcher)
-{
-    lock_t_get(&batcher->lock);
-    int epoch = batcher->counter;
-    lock_t_release(&batcher->lock);
-
-    return epoch;
-}
-
-void batcher_t_destroy(batcher_t *batcher)
-{
-    lock_t_destroy(&batcher->lock);
-    pthread_cond_destroy(&batcher->blocking_condition);
-}
-
 
 /**
  * @brief Segment of dynamically allocated memory.
  *
  */
-typedef struct segment_node
+typedef struct segment
 {
-    struct segment_node *prev;
-    struct segment_node *next;
+    struct segment *prev;
+    struct segment *next;
     // uint8_t segment[] // segment of dynamic size
-} segment_node_t;
+} segment_t;
 
 /**
  * @brief Struct representing a transactional shared-memory region.
@@ -165,7 +54,7 @@ typedef struct region
     size_t size;
     size_t align;
 
-    segment_node_t *allocs;
+    segment_t *allocs;
 
     batcher_t batcher;
 } region_t;
@@ -301,10 +190,50 @@ bool tm_write(shared_t unused(shared), tx_t unused(tx), void const *unused(sourc
  * @param target Pointer in private memory receiving the address of the first byte of the newly allocated, aligned segment
  * @return Whether the whole transaction can continue (success/nomem), or not (abort_alloc)
  **/
-alloc_t tm_alloc(shared_t unused(shared), tx_t unused(tx), size_t unused(size), void **unused(target))
+alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 {
     // TODO: tm_alloc(shared_t, tx_t, size_t, void**)
-    return abort_alloc;
+    size_t align = ((struct region *)shared)->align;
+
+    // Why?
+    align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+
+    // Calculate the number of words
+    size_t num_words = size / align;
+    size_t words_size = num_words * sizeof(word_t);
+
+    // Allocate memory for the segment structs and the words
+    segment_t *sn;
+    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + words_size) != 0)) // Allocation failed
+        return nomem_alloc;
+
+    // Insert in the linked list
+    sn->prev = NULL;
+    sn->next = ((struct region *)shared)->allocs;
+    if (sn->next)
+        sn->next->prev = sn;
+    ((struct region *)shared)->allocs = sn;
+
+    word_t **segment_words = ((uintptr_t) sn + sizeof(segment_t));
+    memset(segment_words, 0, words_size);
+
+    for(int word_index=0; word_index<words_size; word_index++){
+        segment_words[word_index] = (word_t *) malloc(sizeof(word_t));
+        if (unlikely(!segment_words[word_index]))
+        {
+            return nomem_alloc;
+        }
+
+        segment_words[word_index]->copyA = NULL;
+        segment_words[word_index]->copyB = NULL;
+        segment_words[word_index]->valid_copy = 0;
+        segment_words[word_index]->modified = 0;
+        segment_words[word_index]->write_set = -1;
+    }
+    
+    
+    *target = segment_words;
+    return success_alloc;
 }
 
 /** [thread-safe] Memory freeing in the given transaction.

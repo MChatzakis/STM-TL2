@@ -1,5 +1,8 @@
 {
     "files.associations": {
-        "macros.h": "c"
+        "macros.h": "c",
+        "iostream": "cpp",
+        "__mutex_base": "cpp",
+        "lock.h": "c"
     }
 }
