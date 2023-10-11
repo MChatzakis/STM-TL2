@@ -33,6 +33,12 @@
 
 #include "macros.h"
 
+/**
+ * TODO (Till tuesday morning):
+ * 1) Complete the implementation of all functions listed in the instructions
+ * 2) Go to the lab session to ask the questions about correct alignment
+ */
+
 /** Create (i.e. allocate + init) a new shared memory region, with one first non-free-able allocated segment of the requested size and alignment.
  * @param size  Size of the first shared segment of memory to allocate (in bytes), must be a positive multiple of the alignment
  * @param align Alignment (in bytes, must be a power of 2) that the shared memory region must support

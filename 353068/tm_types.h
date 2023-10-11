@@ -14,8 +14,8 @@ typedef struct segment
 {
     struct segment *prev;
     struct segment *next;
+
     long words_num;
-    // uint8_t segment[] // segment of dynamic size
 } segment_t;
 
 /**
@@ -37,5 +37,3 @@ typedef struct region
     bool *tx_type; // 0 for read only, 1 for read write
 
 } region_t;
-
-
