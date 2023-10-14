@@ -4,6 +4,9 @@
         "iostream": "cpp",
         "__mutex_base": "cpp",
         "lock.h": "c",
-        "tm_types.h": "c"
+        "tm_types.h": "c",
+        "def_lock.h": "c",
+        "versioned_write_spinlock.h": "c",
+        "global_versioned_clock.h": "c"
     }
 }

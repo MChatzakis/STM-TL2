@@ -3,7 +3,9 @@
 #include <tm.h>
 #include <macros.h>
 
-#include "./deflock.h"
+#include "def_lock.h"
+#include "versioned_write_spinlock.h"
+#include "global_versioned_clock.h"
 
 #define VWSL_NUM 100
 
@@ -25,15 +27,15 @@ typedef segment_t * segment_list;
  */
 typedef struct region
 {
-    //global_versioned_clock_t *global_versioned_clock;
-    //versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM]; 
+    global_versioned_clock_t *global_versioned_clock;
+    versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM]; 
+    def_lock_t segment_list_lock;
 
     void *start;
 
     size_t size;
     size_t align;
-
-    def_lock_t segment_list_lock;
+    
     segment_list *allocs;
 } region_t;
 
