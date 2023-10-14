@@ -7,6 +7,20 @@
         "tm_types.h": "c",
         "def_lock.h": "c",
         "versioned_write_spinlock.h": "c",
-        "global_versioned_clock.h": "c"
+        "global_versioned_clock.h": "c",
+        "__bits": "c",
+        "__config": "c",
+        "__hash_table": "c",
+        "__node_handle": "c",
+        "bitset": "c",
+        "locale": "c",
+        "sstream": "c",
+        "type_traits": "c",
+        "typeinfo": "c",
+        "version": "c",
+        "complex": "c",
+        "random": "c",
+        "atomic": "c",
+        "chrono": "c"
     }
 }
