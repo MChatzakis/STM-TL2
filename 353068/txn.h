@@ -16,4 +16,5 @@ typedef struct txn
     int wr;
 } txn_t;
 
-
+txn_t *txn_t_init(bool is_ro);
+void txn_t_free(txn_t *txn);
