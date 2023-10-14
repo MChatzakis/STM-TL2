@@ -3,6 +3,7 @@
         "macros.h": "c",
         "iostream": "cpp",
         "__mutex_base": "cpp",
-        "lock.h": "c"
+        "lock.h": "c",
+        "tm_types.h": "c"
     }
 }

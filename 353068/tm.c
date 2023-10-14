@@ -25,11 +25,9 @@
 
 // Internal headers
 #include <tm.h>
-#include <batcher.h>
-#include <lock.h>
 #include <macros.h>
-#include <word.h>
-#include <tm_types.h>
+
+#include "tm_types.h"
 
 #include "macros.h"
 

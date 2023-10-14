@@ -1,10 +1,11 @@
 #pragma once
 
 #include <tm.h>
-#include <batcher.h>
-#include <lock.h>
 #include <macros.h>
-#include <word.h>
+
+#include "./deflock.h"
+
+#define VWSL_NUM 100
 
 /**
  * @brief Segment of dynamically allocated memory.
@@ -14,9 +15,9 @@ typedef struct segment
 {
     struct segment *prev;
     struct segment *next;
-
-    long words_num;
 } segment_t;
+
+typedef segment_t * segment_list;
 
 /**
  * @brief Struct representing a transactional shared-memory region.
@@ -24,16 +25,16 @@ typedef struct segment
  */
 typedef struct region
 {
+    //global_versioned_clock_t *global_versioned_clock;
+    //versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM]; 
+
     void *start;
 
     size_t size;
     size_t align;
 
-    segment_t *allocs;
-
-    batcher_t batcher;
-
-    tx_t tx_count;
-    bool *tx_type; // 0 for read only, 1 for read write
-
+    def_lock_t segment_list_lock;
+    segment_list *allocs;
 } region_t;
+
+
