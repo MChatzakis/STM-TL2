@@ -26,7 +26,7 @@ txn_t *txn_t_init(bool is_ro){
     return txn;
 }
 
-void txn_t_free(txn_t *txn){
+void txn_t_destroy(txn_t *txn){
     set_t_destroy(txn->read_set);
     set_t_destroy(txn->write_set);
 

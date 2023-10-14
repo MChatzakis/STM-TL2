@@ -27,7 +27,7 @@ typedef segment_t * segment_list;
  */
 typedef struct region
 {
-    global_versioned_clock_t *global_versioned_clock;
+    global_versioned_clock_t global_versioned_clock;
     versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM]; 
     def_lock_t segment_list_lock;
 
