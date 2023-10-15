@@ -103,6 +103,11 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
+    /*
+    if bloom_filter(set, addr) == false
+        return set_t_add(set, addr, val, size);
+    */
+
     while (curr)
     {
         if (curr->addr == addr)

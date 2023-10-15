@@ -30,6 +30,7 @@
 
 #include "tm_types.h"
 #include "txn.h"
+#include "utils.h"
 
 #include "macros.h"
 
@@ -154,13 +155,20 @@ bool tm_end(shared_t shared, tx_t tx)
 {
     // TODO: tm_end(shared_t, tx_t)
     region_t *region = (region_t *)shared;
-
-    bool commit_res = false;
-
     txn_t *txn = (txn_t *)tx;
-    txn_t_destroy(txn);
 
-    return commit_res;
+    bool commit_result;
+    if (txn->is_ro)
+    {
+        commit_result = true;    
+    }
+    else
+    {
+        commit_result = utils_check_commit(region, txn);
+    }
+
+    txn_t_destroy(txn);
+    return commit_result;
 }
 
 /** [thread-safe] Read operation in the given transaction, source in the shared region and target in a private region.
@@ -171,10 +179,29 @@ bool tm_end(shared_t shared, tx_t tx)
  * @param target Target start address (in a private region)
  * @return Whether the whole transaction can continue
  **/
-bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *source, size_t size, void *target)
+bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *target)
 {
     // TODO: tm_read(shared_t, tx_t, void const*, size_t, void*)
     region_t *region = (region_t *)shared;
+    txn_t *txn = (txn_t *)tx;
+
+    size_t align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+
+    if (txn->is_ro)
+    {
+        // Read only txns do not keep a read set?
+    }
+    else
+    {
+        for (int i = 0; i < size; i += align)
+        {
+            void *word_addr = source + i;
+            void *source_addr = target + i;
+            size_t word_size = align;
+
+            set_t_add_or_update(txn->read_set, word_addr, NULL, align);
+        }
+    }
 
     return true;
 }

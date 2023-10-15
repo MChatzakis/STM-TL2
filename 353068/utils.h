@@ -1,8 +1,16 @@
 #pragma once
 
+#include <stdio.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <assert.h>
+
 #include "globals.h"
 #include "tm_types.h"
 #include "rw_sets.h"
+#include "txn.h"
 
-versioned_write_spinlock_t *get_mapped_lock(versioned_write_spinlock_t *locks, void *addr);
-bool try_lock_set(region_t *region, set_t *set);
+versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr);
+bool utils_try_lock_set(region_t *region, set_t *set);
+void utils_unlock_set(region_t *region, set_t *set, set_node_t *start, set_node_t *end);
+bool utils_check_commit(region_t *region, txn_t *txn);

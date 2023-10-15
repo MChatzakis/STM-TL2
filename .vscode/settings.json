@@ -27,6 +27,7 @@
         "stdlib.h": "c",
         "stdbool.h": "c",
         "rw_sets.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "utils.h": "c"
     }
 }
