@@ -21,6 +21,12 @@
         "complex": "c",
         "random": "c",
         "atomic": "c",
-        "chrono": "c"
+        "chrono": "c",
+        "txn.h": "c",
+        "stdatomic.h": "c",
+        "stdlib.h": "c",
+        "stdbool.h": "c",
+        "rw_sets.h": "c",
+        "stdio.h": "c"
     }
 }
