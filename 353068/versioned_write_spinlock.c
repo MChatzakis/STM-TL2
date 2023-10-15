@@ -16,9 +16,19 @@ void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock)
 void versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
 {
     bool expected = UNLOCKED;
+    int attempt = 0;
     while (atomic_exchange(&lock->lock, true) != expected)
     {
-        // Implement back off HERE
+        // Bounding the lock attempts
+        attempt++;
+        if (attempt == MAX_LOCK_ATTEMPTS){
+            return UNLOCKED;
+        }
+
+        // Spinning with increasing backoff mechanism
+        for(int i=0; i<attempt*BACKOFF_FACTOR; i++){
+            //spend some time here!
+        }
     }
 
     return LOCKED;    

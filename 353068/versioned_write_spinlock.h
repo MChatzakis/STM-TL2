@@ -5,6 +5,9 @@
 
 #include "globals.h"
 
+#define MAX_LOCK_ATTEMPTS 5
+#define BACKOFF_FACTOR 100
+
 typedef struct versioned_write_spinlock
 {
     _Atomic bool lock; // When lock==false, the lock is free. When lock==true, the lock is held.
