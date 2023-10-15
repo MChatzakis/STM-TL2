@@ -160,7 +160,7 @@ bool tm_end(shared_t shared, tx_t tx)
     bool commit_result;
     if (txn->is_ro)
     {
-        commit_result = true;    
+        commit_result = true;
     }
     else
     {
@@ -189,17 +189,44 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
 
     if (txn->is_ro)
     {
-        // Read only txns do not keep a read set?
+        for (int i = 0; i < size; i += align)
+        {
+            void *word_addr = source + i;
+            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, word_addr);
+            if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
+            {
+                return false;
+            }
+        }
+
+        memcpy(target, source, size);
     }
     else
     {
         for (int i = 0; i < size; i += align)
         {
             void *word_addr = source + i;
-            void *source_addr = target + i;
+            void *targ_addr = target + i;
             size_t word_size = align;
 
+            // Add the entry to the read set
             set_t_add_or_update(txn->read_set, word_addr, NULL, align);
+
+            void *val;
+            if ((val = set_t_get_val_or_null(txn->write_set, word_addr)) != NULL)
+            {
+                memcpy(targ_addr, val, word_size);
+                return true;
+            }
+            else{
+                memcpy(targ_addr, word_addr, word_size); //write the old value
+            }
+
+            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, word_addr);
+            if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
+            {
+                return false;
+            }
         }
     }
 
@@ -228,6 +255,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         void *word_addr = target + i;
         void *source_addr = source + i;
         size_t word_size = align;
+
+        // Saves the pair (address,value)
         set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size);
     }
 

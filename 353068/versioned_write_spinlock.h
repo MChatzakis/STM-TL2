@@ -18,3 +18,5 @@ void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock);
 bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_unlock(versioned_write_spinlock_t *lock);
+bool versioned_write_spinlock_t_get_state(versioned_write_spinlock_t *lock);
+int versioned_write_spinlock_t_get_version(versioned_write_spinlock_t *lock);

@@ -14,6 +14,11 @@ set_t *set_t_init()
 
     set->head = NULL;
     set->tail = NULL;
+    set->bloom_filter = bloom_filter_create();
+    if (!set->bloom_filter)
+    {
+        return NULL;
+    }
 
     return set;
 }
@@ -29,6 +34,8 @@ void set_t_destroy(set_t *set)
         free(curr);
         curr = next;
     }
+
+    bloom_filter_destroy(set->bloom_filter);
 
     free(set);
 }
@@ -46,7 +53,7 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     node->next = NULL;
 
     // Allocate val
-    node->val = (void *)malloc(size); //size is align
+    node->val = (void *)malloc(size); // size is align
     memcpy(node->val, val, size);
 
     if (!set->head)
@@ -59,6 +66,9 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
         set->tail->next = node;
         set->tail = node;
     }
+
+    // Update bloom!
+    bloom_filter_add(set->bloom_filter, addr);
 
     return true;
 }
@@ -88,7 +98,7 @@ bool set_t_remove(set_t *set, void *addr)
 
             free(curr->val);
             free(curr);
-            
+
             return true;
         }
 
@@ -103,10 +113,10 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
-    /*
-    if bloom_filter(set, addr) == false
+    if (!bloom_filter_contains(set->bloom_filter, addr))
+    {
         return set_t_add(set, addr, val, size);
-    */
+    }
 
     while (curr)
     {
@@ -120,4 +130,27 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
     }
 
     return set_t_add(set, addr, val, size);
+}
+
+void *set_t_get_val_or_null(set_t *set, void *addr)
+{
+    set_node_t *curr = set->head;
+
+    if (!bloom_filter_contains(set->bloom_filter, addr))
+    {
+        return NULL;
+    }
+
+    while (curr)
+    {
+        if (curr->addr == addr)
+        {
+            return curr->val;
+        }
+
+        curr = curr->next;
+    }
+
+
+    return NULL;
 }
