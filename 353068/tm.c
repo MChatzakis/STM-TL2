@@ -6,7 +6,7 @@
  *
  * [...]
  *
- * @section DESCRIPTION
+ * @section Software transactional memory implementing TL2 algorithm. 
  *
  * Implementation of your own transaction manager.
  * You can completely rewrite this file (and create more files) as you wish.
