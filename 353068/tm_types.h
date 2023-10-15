@@ -3,11 +3,11 @@
 #include <tm.h>
 #include <macros.h>
 
+#include "globals.h"
 #include "def_lock.h"
 #include "versioned_write_spinlock.h"
 #include "global_versioned_clock.h"
 
-#define VWSL_NUM 100
 
 /**
  * @brief Segment of dynamically allocated memory.

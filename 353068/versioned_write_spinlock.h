@@ -3,8 +3,7 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
-#define LOCKED true
-#define UNLOCKED false
+#include "globals.h"
 
 typedef struct versioned_write_spinlock
 {

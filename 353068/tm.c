@@ -138,7 +138,10 @@ tx_t tm_begin(shared_t shared, bool is_ro)
         return invalid_tx;
     }
 
-    return (tx_t) txn;
+    // 1. TL2: Sample load the current value of the global version clock
+    txn->rv = global_versioned_clock_t_get_clock(&region->global_versioned_clock);
+
+    return (tx_t)txn;
 }
 
 /** [thread-safe] End the given transaction.
@@ -153,8 +156,8 @@ bool tm_end(shared_t shared, tx_t tx)
 
     bool commit_res = false;
 
-    //txn_t *txn = (txn_t *)tx;
-    //txn_t_destroy(txn);
+    txn_t *txn = (txn_t *)tx;
+    txn_t_destroy(txn);
 
     return commit_res;
 }
@@ -171,7 +174,6 @@ bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *source, size_
 {
     // TODO: tm_read(shared_t, tx_t, void const*, size_t, void*)
     region_t *region = (region_t *)shared;
-    
 
     return true;
 }
@@ -184,9 +186,21 @@ bool tm_read(shared_t unused(shared), tx_t unused(tx), void const *source, size_
  * @param target Target start address (in the shared region)
  * @return Whether the whole transaction can continue
  **/
-bool tm_write(shared_t shared, tx_t unused(tx), void const *source, size_t size, void *target)
+bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *target)
 {
     // TODO: tm_write(shared_t, tx_t, void const*, size_t, void*)
+    region_t *region = (region_t *)shared;
+    txn_t *txn = (txn_t *)tx;
+
+    size_t align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+
+    // iterate the words of source (advancing align bytes)
+    for (int i = 0; i < size; i += align)
+    {
+        void *word_addr = target + i;
+        void *source_addr = source + i;
+        size_t word_size = align;
+    }
 
     return true;
 }
@@ -201,12 +215,28 @@ bool tm_write(shared_t shared, tx_t unused(tx), void const *source, size_t size,
 alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 {
     // TODO: tm_alloc(shared_t, tx_t, size_t, void**)
-    size_t align = ((struct region *)shared)->align;
+    region_t *region = (region_t *)shared;
 
-    // Why?
-    align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+    size_t align = region->align;
+    align = align < sizeof(segment_t *) ? sizeof(void *) : align;
 
-    
+    segment_t *sn;
+    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size) != 0)) // Allocation failed
+        return nomem_alloc;
+
+    // Insert in the linked list
+    def_lock_t_lock(&region->segment_list_lock);
+    sn->prev = NULL;
+    sn->next = ((struct region *)shared)->allocs;
+    if (sn->next)
+        sn->next->prev = sn;
+    ((struct region *)shared)->allocs = sn;
+    def_lock_t_unlock(&region->segment_list_lock);
+
+    void *segment = (void *)((uintptr_t)sn + sizeof(segment_t));
+    memset(segment, 0, size);
+    *target = segment;
+
     return success_alloc;
 }
 
@@ -220,7 +250,6 @@ bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 {
     // TODO: tm_free(shared_t, tx_t, void*)
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t));
-    
 
     return true;
 }

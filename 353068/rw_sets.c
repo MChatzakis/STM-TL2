@@ -91,3 +91,21 @@ bool set_t_remove(set_t *set, void *addr)
 
     return false;
 }
+
+bool set_t_add_or_update(set_t *set, void *addr, void *val)
+{
+    set_node_t *curr = set->head;
+
+    while (curr)
+    {
+        if (curr->addr == addr)
+        {
+            curr->val = val;
+            return true;
+        }
+
+        curr = curr->next;
+    }
+
+    return set_t_add(set, addr, val);
+}
