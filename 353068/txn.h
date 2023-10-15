@@ -13,8 +13,8 @@ typedef struct txn
     write_set_t *write_set;
 
     int rv;
-    int wr;
+    int wv;
 } txn_t;
 
-txn_t *txn_t_init(bool is_ro);
+txn_t *txn_t_init(bool is_ro, int rv, int wv);
 void txn_t_destroy(txn_t *txn);

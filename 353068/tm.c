@@ -26,6 +26,7 @@
 // Internal headers
 #include <tm.h>
 #include <macros.h>
+#include <assert.h>
 
 #include "tm_types.h"
 #include "txn.h"
@@ -89,6 +90,8 @@ void tm_destroy(shared_t shared)
         versioned_write_spinlock_t_destroy(&region->versioned_write_spinlock[i]);
     }
 
+    assert(region->allocs == NULL);
+
     free(region);
 }
 
@@ -132,14 +135,12 @@ tx_t tm_begin(shared_t shared, bool is_ro)
     // TODO: tm_begin(shared_t)
     region_t *region = (region_t *)shared;
 
-    txn_t *txn = txn_t_init(is_ro);
+    // 1. TL2: Sample load the current value of the global version clock
+    txn_t *txn = txn_t_init(is_ro, global_versioned_clock_t_get_clock(&region->global_versioned_clock), -1);
     if (unlikely(!txn))
     {
         return invalid_tx;
     }
-
-    // 1. TL2: Sample load the current value of the global version clock
-    txn->rv = global_versioned_clock_t_get_clock(&region->global_versioned_clock);
 
     return (tx_t)txn;
 }
@@ -194,12 +195,13 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
 
     size_t align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
 
-    // iterate the words of source (advancing align bytes)
+    // iterate the words of source (word_size = align)
     for (int i = 0; i < size; i += align)
     {
         void *word_addr = target + i;
         void *source_addr = source + i;
         size_t word_size = align;
+        set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size);
     }
 
     return true;
@@ -227,10 +229,10 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     // Insert in the linked list
     def_lock_t_lock(&region->segment_list_lock);
     sn->prev = NULL;
-    sn->next = ((struct region *)shared)->allocs;
+    sn->next = region->allocs;
     if (sn->next)
         sn->next->prev = sn;
-    ((struct region *)shared)->allocs = sn;
+    region->allocs = sn;
     def_lock_t_unlock(&region->segment_list_lock);
 
     void *segment = (void *)((uintptr_t)sn + sizeof(segment_t));
@@ -249,7 +251,19 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 {
     // TODO: tm_free(shared_t, tx_t, void*)
+    region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t));
 
+    // Remove from the linked list
+    def_lock_t_lock(&region->segment_list_lock);
+    if (sn->prev)
+        sn->prev->next = sn->next;
+    else
+        region->allocs = sn->next;
+    if (sn->next)
+        sn->next->prev = sn->prev;
+    def_lock_t_unlock(&region->segment_list_lock);
+
+    free(sn);
     return true;
 }

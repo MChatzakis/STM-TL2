@@ -13,7 +13,7 @@ void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock)
     return;
 }
 
-void versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
+bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
 {
     bool expected = UNLOCKED;
     int attempt = 0;

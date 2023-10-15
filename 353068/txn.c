@@ -1,6 +1,6 @@
 #include "txn.h"
 
-txn_t *txn_t_init(bool is_ro){
+txn_t *txn_t_init(bool is_ro, int rv, int wv){
     txn_t * txn = (txn_t *) malloc(sizeof(txn_t));
     if(!txn){
         return NULL;
@@ -20,8 +20,8 @@ txn_t *txn_t_init(bool is_ro){
         return NULL;
     }
 
-    txn->rv = -1;
-    txn->wr = -1;
+    txn->rv = rv;
+    txn->wv = wv;
 
     return txn;
 }

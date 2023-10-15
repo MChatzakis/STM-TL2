@@ -16,5 +16,5 @@ typedef struct versioned_write_spinlock
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock);
-void versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock);
+bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_unlock(versioned_write_spinlock_t *lock);

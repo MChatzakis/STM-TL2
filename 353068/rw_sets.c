@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "rw_sets.h"
 
@@ -32,7 +33,7 @@ void set_t_destroy(set_t *set)
     free(set);
 }
 
-bool set_t_add(set_t *set, void *addr, void *val)
+bool set_t_add(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
     if (!node)
@@ -41,8 +42,12 @@ bool set_t_add(set_t *set, void *addr, void *val)
     }
 
     node->addr = addr;
-    node->val = val;
+    node->size = size;
     node->next = NULL;
+
+    // Allocate val
+    node->val = (void *)malloc(size); //size is align
+    memcpy(node->val, val, size);
 
     if (!set->head)
     {
@@ -81,7 +86,9 @@ bool set_t_remove(set_t *set, void *addr)
                 set->tail = prev;
             }
 
+            free(curr->val);
             free(curr);
+            
             return true;
         }
 
@@ -92,7 +99,7 @@ bool set_t_remove(set_t *set, void *addr)
     return false;
 }
 
-bool set_t_add_or_update(set_t *set, void *addr, void *val)
+bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
@@ -100,12 +107,12 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val)
     {
         if (curr->addr == addr)
         {
-            curr->val = val;
+            memcpy(curr->val, val, size);
             return true;
         }
 
         curr = curr->next;
     }
 
-    return set_t_add(set, addr, val);
+    return set_t_add(set, addr, val, size);
 }
