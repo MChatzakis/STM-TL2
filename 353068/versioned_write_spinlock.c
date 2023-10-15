@@ -25,9 +25,9 @@ void versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
             return UNLOCKED;
         }
 
-        // Spinning with increasing backoff mechanism
+        // Spinning with increasing backoff mechanism (linear backoff)
         for(int i=0; i<attempt*BACKOFF_FACTOR; i++){
-            //spend some time here!
+            //do nothing here
         }
     }
 
