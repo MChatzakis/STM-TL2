@@ -1,5 +1,5 @@
 #include "bloom_filter.h"
-
+#include <string.h>
 bloom_filter_t *bloom_filter_create()
 {
     bloom_filter_t *bf = (bloom_filter_t *)malloc(sizeof(bloom_filter_t));

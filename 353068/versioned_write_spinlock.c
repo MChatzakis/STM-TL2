@@ -8,7 +8,7 @@ void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock)
     lock->version = 0;
 }
 
-void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock)
+void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *unused(lock))
 {
     return;
 }
@@ -40,7 +40,7 @@ void versioned_write_spinlock_t_unlock_and_update(versioned_write_spinlock_t *lo
     atomic_store(&lock->lock, UNLOCKED);
 } 
 
-void versioned_write_spinlock_t_unlock_and_update(versioned_write_spinlock_t *lock)
+void versioned_write_spinlock_t_unlock(versioned_write_spinlock_t *lock)
 {
     atomic_store(&lock->lock, UNLOCKED);
 }

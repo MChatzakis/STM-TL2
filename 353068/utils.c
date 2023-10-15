@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <string.h>
 
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
 {
@@ -11,7 +12,7 @@ bool utils_try_lock_set(region_t *region, set_t *set)
 
     while (curr)
     {
-        versioned_write_spinlock_t *vwsl = get_mapped_lock(region->versioned_write_spinlock, curr->addr);
+        versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
         if (!versioned_write_spinlock_t_lock(vwsl))
         {
             utils_unlock_set(region, set, set->head, curr);
@@ -24,7 +25,7 @@ bool utils_try_lock_set(region_t *region, set_t *set)
     return true;
 }
 
-void utils_unlock_set(region_t *region, set_t *set, set_node_t *start, set_node_t *end)
+void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, set_node_t *end)
 {
     // Note: to unlock the full set, start=set->head and end=NULL.
     set_node_t *curr = start;
@@ -38,7 +39,7 @@ void utils_unlock_set(region_t *region, set_t *set, set_node_t *start, set_node_
             return;
         }
 
-        versioned_write_spinlock_t *vwsl = get_mapped_lock(region->versioned_write_spinlock, curr->addr);
+        versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -52,7 +53,7 @@ bool utils_check_commit(region_t *region, txn_t *txn)
         return false;
     }
 
-    txn->wv = __atomic_add_fetch(&region->global_versioned_clock.clock, 1, 0); //???
+    txn->wv = atomic_fetch_add(&(region->global_versioned_clock).clock, 1) + 1;
 
     if (txn->wv != txn->rv + 1)
     {
@@ -74,7 +75,7 @@ bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
 
     while (curr)
     {
-        versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, curr->addr);
+        versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
         
         if(!utils_validate_versioned_write_spinlock(vws, rv)){
             return false;
@@ -108,10 +109,10 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set)
     while (curr)
     {
         // 1. update:
-        memcpy(curr->addr, curr->val);
+        memcpy(curr->addr, curr->val, curr->size);
 
         // 2. release lock
-        versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, curr->addr);
+        versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
         versioned_write_spinlock_t_unlock(vws);
 
         curr = curr->next;

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "rw_sets.h"
 
@@ -68,7 +69,7 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     }
 
     // Update bloom!
-    bloom_filter_add(set->bloom_filter, addr);
+    bloom_filter_add(set->bloom_filter, (uintptr_t) addr);
 
     return true;
 }
@@ -113,7 +114,7 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_contains(set->bloom_filter, addr))
+    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t) addr))
     {
         return set_t_add(set, addr, val, size);
     }
@@ -136,7 +137,7 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 {
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_contains(set->bloom_filter, addr))
+    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t) addr))
     {
         return NULL;
     }

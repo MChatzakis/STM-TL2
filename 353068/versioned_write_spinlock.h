@@ -2,7 +2,7 @@
 
 #include <stdatomic.h>
 #include <stdbool.h>
-
+#include "macros.h"
 #include "globals.h"
 
 #define MAX_LOCK_ATTEMPTS 5

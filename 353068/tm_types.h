@@ -1,7 +1,7 @@
 #pragma once
 
 #include <tm.h>
-#include <macros.h>
+#include "macros.h"
 
 #include "globals.h"
 #include "def_lock.h"
@@ -36,7 +36,7 @@ typedef struct region
     size_t size;
     size_t align;
     
-    segment_list *allocs;
+    segment_list allocs;
 } region_t;
 
 

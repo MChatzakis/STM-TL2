@@ -1,5 +1,7 @@
 #pragma once
 
+#include "globals.h"
+
 #include <stdatomic.h>
 #include <stdbool.h>
 

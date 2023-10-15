@@ -25,8 +25,8 @@
 
 // Internal headers
 #include <tm.h>
-#include <macros.h>
 #include <assert.h>
+#include <string.h>
 
 #include "tm_types.h"
 #include "txn.h"
@@ -113,7 +113,7 @@ void *tm_start(shared_t shared)
 size_t tm_size(shared_t shared)
 {
     // TODO: tm_size(shared_t)
-    ((region_t *)shared)->size;
+    return ((region_t *)shared)->size;
 }
 
 /** [thread-safe] Return the alignment (in bytes) of the memory accesses on the given shared memory region.
@@ -185,14 +185,14 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
-    size_t align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+    size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
     if (txn->is_ro)
     {
-        for (int i = 0; i < size; i += align)
+        for (size_t i = 0; i < size; i += align)
         {
-            void *word_addr = source + i;
-            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, word_addr);
+            void *word_addr = (void *) source + i;
+            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
                 return false;
@@ -203,9 +203,9 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     }
     else
     {
-        for (int i = 0; i < size; i += align)
+        for (size_t i = 0; i < size; i += align)
         {
-            void *word_addr = source + i;
+            void *word_addr = (void *) source + i;
             void *targ_addr = target + i;
             size_t word_size = align;
 
@@ -222,7 +222,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 memcpy(targ_addr, word_addr, word_size); //write the old value
             }
 
-            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region, word_addr);
+            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
                 return false;
@@ -247,13 +247,13 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
-    size_t align = align < sizeof(struct segment_node *) ? sizeof(void *) : align;
+    size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
     // iterate the words of source (word_size = align)
-    for (int i = 0; i < size; i += align)
+    for (size_t i = 0; i < size; i += align)
     {
         void *word_addr = target + i;
-        void *source_addr = source + i;
+        void *source_addr = (void *) source + i;
         size_t word_size = align;
 
         // Saves the pair (address,value)
