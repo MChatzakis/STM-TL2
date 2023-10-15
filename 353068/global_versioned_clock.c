@@ -15,3 +15,7 @@ int global_versioned_clock_t_get_clock(global_versioned_clock_t *global_versione
 {   
     return atomic_load(&global_versioned_clock->clock);
 }
+
+int global_versioned_clock_t_increment_and_fetch(global_versioned_clock_t *global_versioned_clock){
+    return -69;
+}

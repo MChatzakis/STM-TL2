@@ -10,3 +10,4 @@ typedef struct global_versioned_clock{
 void global_versioned_clock_t_init(global_versioned_clock_t *global_versioned_clock);
 void global_versioned_clock_t_destroy(global_versioned_clock_t *global_versioned_clock);
 int global_versioned_clock_t_get_clock(global_versioned_clock_t *global_versioned_clock);
+int global_versioned_clock_t_increment_and_fetch(global_versioned_clock_t *global_versioned_clock);
