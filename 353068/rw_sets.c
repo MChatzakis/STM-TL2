@@ -69,7 +69,7 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     }
 
     // Update bloom!
-    bloom_filter_add(set->bloom_filter, (uintptr_t) addr);
+    bloom_filter_add(set->bloom_filter, (uintptr_t)addr);
 
     return true;
 }
@@ -114,7 +114,7 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t) addr))
+    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
     {
         return set_t_add(set, addr, val, size);
     }
@@ -137,7 +137,7 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 {
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t) addr))
+    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
     {
         return NULL;
     }
@@ -151,7 +151,6 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 
         curr = curr->next;
     }
-
 
     return NULL;
 }

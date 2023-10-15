@@ -1,11 +1,12 @@
 #pragma once
 
-#include "globals.h"
-
 #include <stdatomic.h>
 #include <stdbool.h>
 
-typedef struct global_versioned_clock{
+#include "globals.h"
+
+typedef struct global_versioned_clock
+{
     _Atomic int clock;
 } global_versioned_clock_t;
 

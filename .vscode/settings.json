@@ -29,6 +29,8 @@
         "rw_sets.h": "c",
         "stdio.h": "c",
         "utils.h": "c",
-        "globals.h": "c"
+        "globals.h": "c",
+        "dprint.h": "c",
+        "stdarg.h": "c"
     }
 }

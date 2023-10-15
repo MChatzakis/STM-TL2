@@ -1,4 +1,5 @@
 #include "utils.h"
+
 #include <string.h>
 
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
@@ -76,8 +77,9 @@ bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
     while (curr)
     {
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        
-        if(!utils_validate_versioned_write_spinlock(vws, rv)){
+
+        if (!utils_validate_versioned_write_spinlock(vws, rv))
+        {
             return false;
         }
 

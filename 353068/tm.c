@@ -6,7 +6,7 @@
  *
  * [...]
  *
- * @section Software transactional memory implementing TL2 algorithm. 
+ * @section Software transactional memory implementing TL2 algorithm.
  *
  * Implementation of your own transaction manager.
  * You can completely rewrite this file (and create more files) as you wish.
@@ -191,7 +191,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     {
         for (size_t i = 0; i < size; i += align)
         {
-            void *word_addr = (void *) source + i;
+            void *word_addr = (void *)source + i;
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
@@ -205,7 +205,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     {
         for (size_t i = 0; i < size; i += align)
         {
-            void *word_addr = (void *) source + i;
+            void *word_addr = (void *)source + i;
             void *targ_addr = target + i;
             size_t word_size = align;
 
@@ -218,8 +218,9 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 memcpy(targ_addr, val, word_size);
                 return true;
             }
-            else{
-                memcpy(targ_addr, word_addr, word_size); //write the old value
+            else
+            {
+                memcpy(targ_addr, word_addr, word_size); // write the old value
             }
 
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
@@ -253,7 +254,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     for (size_t i = 0; i < size; i += align)
     {
         void *word_addr = target + i;
-        void *source_addr = (void *) source + i;
+        void *source_addr = (void *)source + i;
         size_t word_size = align;
 
         // Saves the pair (address,value)

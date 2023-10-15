@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#include "globals.h"
 #include "rw_sets.h"
 
 typedef struct txn

@@ -2,6 +2,8 @@
 
 #include <pthread.h>
 
+#include "globals.h"
+
 typedef struct def_lock
 {
     pthread_mutex_t mutex;

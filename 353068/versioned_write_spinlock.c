@@ -1,4 +1,5 @@
 #include "versioned_write_spinlock.h"
+
 #include <stdatomic.h>
 #include <stdbool.h>
 
@@ -21,38 +22,38 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
     {
         // Bounding the lock attempts
         attempt++;
-        if (attempt == MAX_LOCK_ATTEMPTS){
+        if (attempt == MAX_LOCK_ATTEMPTS)
+        {
             return UNLOCKED;
         }
 
         // Spinning with increasing backoff mechanism (linear backoff)
-        for(int i=0; i<attempt*BACKOFF_FACTOR; i++){
-            //do nothing here
+        for (int i = 0; i < attempt * BACKOFF_FACTOR; i++)
+        {
+            // do nothing here
         }
     }
 
-    return LOCKED;    
+    return LOCKED;
 }
 
 void versioned_write_spinlock_t_unlock_and_update(versioned_write_spinlock_t *lock)
 {
     lock->version++;
     atomic_store(&lock->lock, UNLOCKED);
-} 
+}
 
 void versioned_write_spinlock_t_unlock(versioned_write_spinlock_t *lock)
 {
     atomic_store(&lock->lock, UNLOCKED);
 }
 
-bool versioned_write_spinlock_t_get_state(versioned_write_spinlock_t *lock){
+bool versioned_write_spinlock_t_get_state(versioned_write_spinlock_t *lock)
+{
     return atomic_load(&lock->lock);
 }
 
-int versioned_write_spinlock_t_get_version(versioned_write_spinlock_t *lock){
+int versioned_write_spinlock_t_get_version(versioned_write_spinlock_t *lock)
+{
     return lock->version;
 }
-
-
-
-

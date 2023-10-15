@@ -8,7 +8,6 @@
 #include "versioned_write_spinlock.h"
 #include "global_versioned_clock.h"
 
-
 /**
  * @brief Segment of dynamically allocated memory.
  *
@@ -19,7 +18,9 @@ typedef struct segment
     struct segment *next;
 } segment_t;
 
-typedef segment_t * segment_list;
+typedef segment_t *segment_list;
+
+#define VWSL_NUM 1000
 
 /**
  * @brief Struct representing a transactional shared-memory region.
@@ -28,15 +29,13 @@ typedef segment_t * segment_list;
 typedef struct region
 {
     global_versioned_clock_t global_versioned_clock;
-    versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM]; 
+    versioned_write_spinlock_t versioned_write_spinlock[VWSL_NUM];
     def_lock_t segment_list_lock;
 
     void *start;
 
     size_t size;
     size_t align;
-    
+
     segment_list allocs;
 } region_t;
-
-
