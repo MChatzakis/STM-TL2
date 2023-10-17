@@ -341,7 +341,8 @@ int main(int argc, char** argv) {
             } catch (::std::exception const& err) { // Special case: cannot unload library with running threads, so print error and quick-exit
                 ::std::cerr << "⎪ *** EXCEPTION ***" << ::std::endl;
                 ::std::cerr << "⎩ " << err.what() << ::std::endl;
-                ::std::quick_exit(2);
+                //::std::quick_exit(2);
+                ::std::exit(2);
             }
         }
         return 0;
