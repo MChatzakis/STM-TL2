@@ -9,6 +9,8 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     }
 
     txn->is_ro = is_ro;
+    txn->rv = rv;
+    txn->wv = wv;
     txn->read_set = set_t_init();
     if (!txn->read_set)
     {
@@ -23,9 +25,6 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
         free(txn);
         return NULL;
     }
-
-    txn->rv = rv;
-    txn->wv = wv;
 
     return txn;
 }

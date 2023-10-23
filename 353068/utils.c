@@ -47,27 +47,57 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
     }
 }
 
+/**
+ * @brief Validates whether or not a write transaction is able to commit
+ * 
+ * @param region Shared memory region associated with the transaction
+ * @param txn Write transaction trying to commit
+ * @return COMMIT(true)/ABORT(false) if the transaction can commit or not 
+ */
 bool utils_check_commit(region_t *region, txn_t *txn)
 {
+    //
+    // TL2 Algorithm (Commiting a write txn)
+    //
+    // In order to commit:
+    //  - Try to lock the write set of the txn (using spinning). 
+    //      > ABORT if not all locks are succesfully acquired
+    //  - Increment and Fetch the Global version clock and store in txn.wv
+    //  - Validate read-set. Check that for each entry in the read set the versioned number of the lock:
+    //      a. Has version number <= rv
+    //      b. Has not been locked
+    //      > ABORT if either of a or b are true
+    //      SPECIAL CASE: If wv = rv + 1, no need for validation of the read-set.
+    //  - Commit. Iterate over the write set and:
+    //      a. Apply the writing to the memory location
+    //      b. Release the lock
+    //
+
+    // Try to lock the write set using bounded spinning
     if (!utils_try_lock_set(region, txn->write_set))
     {
-        return false;
+        return ABORT;
     }
 
-    txn->wv = atomic_fetch_add(&(region->global_versioned_clock).clock, 1) + 1;
+    // Increment and Fetch the value of the global_versioned_clock
+    txn->wv = atomic_fetch_add(&(region->global_versioned_clock).clock, 1) + 1; // Change this to the struct func!
 
+    // If the values were modified by another txn, try to vadiate the read set
     if (txn->wv != txn->rv + 1)
     {
+        // Validate read set
         if (!utils_validate_read_set(region, txn->read_set, txn->rv))
         {
+            // Never forget to release the locks, even if the validation was not succesful
             utils_unlock_set(region, txn->write_set, txn->write_set->head, NULL);
-            return false;
+            return ABORT;
         }
     }
 
+    // Write the new values to the words of the write set, and release the locks
     utils_update_and_unlock_write_set(region, txn->write_set);
 
-    return true;
+    return COMMIT;
 }
 
 bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
