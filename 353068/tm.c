@@ -91,8 +91,10 @@ shared_t tm_create(size_t size, size_t align)
  **/
 void tm_destroy(shared_t shared)
 {
-    // TODO: tm_destroy(shared_t)
     region_t *region = (region_t *)shared;
+
+    dprint_clog(COLOR_RESET, stdout, "tm_destroy:   Destroying STM\n");
+
     free(region->start);
 
     // Destroy the locks related to this region
@@ -176,6 +178,8 @@ bool tm_end(shared_t shared, tx_t tx)
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
+    dprint_clog(COLOR_RESET, stdout, "tm_end:   Ending txn. ID: %lu, rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
+
     bool commit_result;
     if (txn->is_ro)
     {
@@ -192,6 +196,7 @@ bool tm_end(shared_t shared, tx_t tx)
 
     // Dealloacate the memory used for this txn
     txn_t_destroy(txn);
+
 
     return commit_result;
 }
@@ -213,6 +218,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     // Make sure the alignment is correct
     size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
     size_t word_size = align;
+
+    dprint_clog(COLOR_RESET, stdout, "tm_read:  Reading from txn: %lu\n", (tx_t)txn);
 
     if (txn->is_ro)
     {
@@ -325,6 +332,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     // Make sure alignment is correct
     size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
+    dprint_clog(COLOR_RESET, stdout, "tm_write: Reading from txn: %lu\n", (tx_t)txn);
+
     //
     // TL2 Algorithm (Write intstruction):
     //
@@ -367,6 +376,9 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     // Make sure alignment is okay
     size_t align = region->align;
     align = align < sizeof(segment_t *) ? sizeof(void *) : align;
+
+    dprint_clog(COLOR_RESET, stdout, "tm_alloc: Allocating a new segment\n");
+
 
     // Allocate the memory for this new segment
     segment_t *sn;

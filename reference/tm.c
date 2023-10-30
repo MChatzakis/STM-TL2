@@ -29,6 +29,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 // Internal headers
 #include <tm.h>
@@ -126,6 +127,8 @@ tx_t tm_begin(shared_t shared, bool is_ro) {
     // access. On the other hand, read-write transactions acquire an exclusive
     // access. At any point in time, the lock can be shared between any number
     // of read-only transactions or held by a single read-write transaction.
+    //printf("New txn allocated!\n");
+
     if (is_ro) {
         // Note: "unlikely" is a macro that helps branch prediction.
         // It tells the compiler (GCC) that the condition is unlikely to be true
@@ -140,6 +143,7 @@ tx_t tm_begin(shared_t shared, bool is_ro) {
             return invalid_tx;
         return read_write_tx;
     }
+
 }
 
 bool tm_end(shared_t shared, tx_t tx) {
