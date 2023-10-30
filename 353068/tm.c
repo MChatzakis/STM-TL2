@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "globals.h"
 #include "tm_types.h"
 #include "txn.h"
 #include "utils.h"
@@ -92,9 +93,7 @@ shared_t tm_create(size_t size, size_t align)
 void tm_destroy(shared_t shared)
 {
     region_t *region = (region_t *)shared;
-
-    dprint_clog(COLOR_RESET, stdout, "tm_destroy:   Destroying STM\n");
-
+    
     free(region->start);
 
     // Destroy the locks related to this region
@@ -106,8 +105,9 @@ void tm_destroy(shared_t shared)
     }
 
     assert(region->allocs == NULL);
-
     free(region);
+
+    dprint_clog(COLOR_RED, stdout, "tm_destroy: STM deallocated\n");
 }
 
 /** [thread-safe] Return the start address of the first allocated segment in the shared memory region.
@@ -162,7 +162,7 @@ tx_t tm_begin(shared_t shared, bool is_ro)
         return invalid_tx;
     }
 
-    dprint_clog(COLOR_RESET, stdout, "tm_begin: New txn. ID: %lu, rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
+    dprint_clog(COLOR_RESET, stdout, "tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     return (tx_t)txn;
 }
@@ -178,7 +178,7 @@ bool tm_end(shared_t shared, tx_t tx)
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_end:   Ending txn. ID: %lu, rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
+    dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: (Begin) rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     bool commit_result;
     if (txn->is_ro)
@@ -197,6 +197,7 @@ bool tm_end(shared_t shared, tx_t tx)
     // Dealloacate the memory used for this txn
     txn_t_destroy(txn);
 
+    dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Deallocated. Commit: %d\n", (tx_t)txn, commit_result);
 
     return commit_result;
 }
@@ -219,7 +220,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
     size_t word_size = align;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_read:  Reading from txn: %lu\n", (tx_t)txn);
+    dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Reading from %lu to %lu\n", (tx_t)txn, source, target);
 
     if (txn->is_ro)
     {
@@ -246,6 +247,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
                 return false;
             }
         }
@@ -294,6 +296,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
                 return false;
             }
 
@@ -332,7 +335,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     // Make sure alignment is correct
     size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_write: Reading from txn: %lu\n", (tx_t)txn);
+    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, target, source);
 
     //
     // TL2 Algorithm (Write intstruction):
@@ -379,7 +382,6 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 
     dprint_clog(COLOR_RESET, stdout, "tm_alloc: Allocating a new segment\n");
 
-
     // Allocate the memory for this new segment
     segment_t *sn;
     if (unlikely(!posix_memalign((void **)&sn, align, sizeof(segment_t) + size)))
@@ -415,6 +417,8 @@ bool tm_free(shared_t shared, tx_t unused(tx), void *target)
     // Infer the SM region and the memory segment that that target points
     region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
+
+    dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
     // Remove from the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
