@@ -93,7 +93,7 @@ shared_t tm_create(size_t size, size_t align)
 void tm_destroy(shared_t shared)
 {
     region_t *region = (region_t *)shared;
-    
+
     free(region->start);
 
     // Destroy the locks related to this region
@@ -186,11 +186,13 @@ bool tm_end(shared_t shared, tx_t tx)
         // Read-only txns are validated each time they read a word
         // Reaching this point means that all the reads are succesfully validated
         // Thus, it can commit right away
+        dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Read only txn, commiting.\n", (tx_t)txn);
         commit_result = COMMIT;
     }
     else
     {
         // Check commit using TL2 instructions
+        dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Write txn, initiating commiting actions!.\n", (tx_t)txn);
         commit_result = utils_check_commit(region, txn);
     }
 
@@ -252,8 +254,10 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             }
         }
 
-        // Optimization: If all spinlocks are validates, copy the new values at once
+        // Optimization: If all spinlocks are validated, copy the new values at once
         memcpy(target, source, size);
+
+        dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Read only txn, validated all locks and copied the values\n", (tx_t)txn);
     }
     else
     {
@@ -288,7 +292,9 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
 
             // Update or add the source word to the read set.
             // Since this is a read instruction, no value to be added is needed
+            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updating or adding to the read set address %lu\n", (tx_t)txn, word_addr);
             set_t_add_or_update(txn->read_set, word_addr, NULL, align);
+            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updated read set with address %lu\n", (tx_t)txn, word_addr);
 
             // Validate the txn by checking the lock associated with the current word.
             // If the version is consinstent, proceed with the load
@@ -296,24 +302,32 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
-                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 return false;
             }
+            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Validated lock of address %lu\n", (tx_t)txn, word_addr);
 
             // Check if the source_word appears in the write set.
             void *val = set_t_get_val_or_null(txn->write_set, word_addr);
             if (val != NULL)
             {
                 // If this txn plans to write this word, update it with the current value
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did appear in the write set.\n", (tx_t)txn);
                 memcpy(targ_addr, val, word_size);
             }
             else
             {
                 // Else, just write the value that this word already has
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did not appear in the write set.\n", (tx_t)txn);
                 memcpy(targ_addr, word_addr, word_size);
             }
         }
+
+        dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, validated all locks and updated readset\n", (tx_t)txn);
+
     }
+
+    dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Actions passed, txn can continue!\n", (tx_t)txn);
 
     return true;
 }
@@ -358,6 +372,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         // Add or update the entry of word_addr in the read set, setting the value to source_addr
         set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size);
     }
+
+    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Proceeding.\n", (tx_t)txn);
 
     // Normally in TL2, write txn proceeds.
     // If the actions can be commited is validated when the transaction ends

@@ -43,6 +43,7 @@ void set_t_destroy(set_t *set)
 
 bool set_t_add(set_t *set, void *addr, void *val, size_t size)
 {
+    printf("Creating new node!\n");
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
     if (!node)
     {
@@ -57,6 +58,8 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     node->val = (void *)malloc(size); // size is align
     memcpy(node->val, val, size);
 
+    printf("Alll good with node creation!!\n");
+
     if (!set->head)
     {
         set->head = node;
@@ -68,8 +71,13 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
         set->tail = node;
     }
 
+    printf("Alll good with node addition in the set!!\n");
+
     // Update bloom!
     bloom_filter_add(set->bloom_filter, (uintptr_t)addr);
+
+    printf("Alll good with node addition in the bloom filter!!!\n");
+
 
     return true;
 }
@@ -114,10 +122,15 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
+    printf("before\n");
+
     if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
     {
+        printf("inside if\n");
         return set_t_add(set, addr, val, size);
     }
+
+    printf("after\n");
 
     while (curr)
     {
@@ -134,7 +147,7 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 }
 
 void *set_t_get_val_or_null(set_t *set, void *addr)
-{
+{   
     set_node_t *curr = set->head;
 
     if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
