@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "rw_sets.h"
+#include "dprint.h"
 
 set_t *set_t_init()
 {
@@ -15,7 +16,7 @@ set_t *set_t_init()
 
     set->head = NULL;
     set->tail = NULL;
-    set->bloom_filter = bloom_filter_create();
+    set->bloom_filter = bloom_filter_t_create();
     if (!set->bloom_filter)
     {
         return NULL;
@@ -36,14 +37,13 @@ void set_t_destroy(set_t *set)
         curr = next;
     }
 
-    bloom_filter_destroy(set->bloom_filter);
+    bloom_filter_t_destroy(set->bloom_filter);
 
     free(set);
 }
 
 bool set_t_add(set_t *set, void *addr, void *val, size_t size)
 {
-    printf("Creating new node!\n");
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
     if (!node)
     {
@@ -55,11 +55,11 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     node->next = NULL;
 
     // Allocate val
-    node->val = (void *)malloc(size); // size is align
-    memcpy(node->val, val, size);
-
-    printf("Alll good with node creation!!\n");
-
+    if (val != NULL) {
+        node->val = (void *)malloc(size); // size is align
+        memcpy(node->val, val, size);
+    }
+    
     if (!set->head)
     {
         set->head = node;
@@ -71,13 +71,8 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
         set->tail = node;
     }
 
-    printf("Alll good with node addition in the set!!\n");
-
     // Update bloom!
-    bloom_filter_add(set->bloom_filter, (uintptr_t)addr);
-
-    printf("Alll good with node addition in the bloom filter!!!\n");
-
+    bloom_filter_t_add(set->bloom_filter, (uintptr_t)addr);
 
     return true;
 }
@@ -122,15 +117,11 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
-    printf("before\n");
 
-    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
+    if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
     {
-        printf("inside if\n");
         return set_t_add(set, addr, val, size);
     }
-
-    printf("after\n");
 
     while (curr)
     {
@@ -150,7 +141,7 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 {   
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_contains(set->bloom_filter, (uintptr_t)addr))
+    if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
     {
         return NULL;
     }
@@ -166,4 +157,20 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
     }
 
     return NULL;
+}
+
+void set_t_print(set_t *set, bool print_bloom){
+    set_node_t *curr = set->head;
+
+    if (print_bloom){
+        bloom_filter_t_print(set->bloom_filter);
+    }
+
+    while(curr){
+        dprint_clog(COLOR_RESET, stdout, "[addr %lu, val %lu, size %d] ",curr->addr, curr->val, curr->size);
+        curr = curr -> next;
+    }
+    dprint_clog(COLOR_RESET, stdout, "\n");
+
+    return;
 }

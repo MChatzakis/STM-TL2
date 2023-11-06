@@ -18,7 +18,7 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
 {
     bool expected = UNLOCKED;
     int attempt = 0;
-    while (atomic_exchange(&lock->lock, true) != expected)
+    while (atomic_exchange(&lock->lock, LOCKED) != expected)
     {
         // Bounding the lock attempts
         attempt++;
@@ -37,9 +37,15 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
     return LOCKED;
 }
 
-void versioned_write_spinlock_t_unlock_and_update(versioned_write_spinlock_t *lock)
+void versioned_write_spinlock_t_increment_and_update(versioned_write_spinlock_t *lock)
 {
     lock->version++;
+    atomic_store(&lock->lock, UNLOCKED);
+}
+
+void versioned_write_spinlock_t_update_and_unlock(versioned_write_spinlock_t *lock, int new_version)
+{
+    lock->version = new_version;
     atomic_store(&lock->lock, UNLOCKED);
 }
 

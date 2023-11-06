@@ -80,7 +80,7 @@ bool utils_check_commit(region_t *region, txn_t *txn)
     }
 
     // Increment and Fetch the value of the global_versioned_clock
-    txn->wv = atomic_fetch_add(&(region->global_versioned_clock).clock, 1) + 1; // Change this to the struct func!
+    txn->wv = global_versioned_clock_t_increment_and_fetch(&region->global_versioned_clock);
 
     // If the values were modified by another txn, try to vadiate the read set
     if (txn->wv != txn->rv + 1)
@@ -95,7 +95,7 @@ bool utils_check_commit(region_t *region, txn_t *txn)
     }
 
     // Write the new values to the words of the write set, and release the locks
-    utils_update_and_unlock_write_set(region, txn->write_set);
+    utils_update_and_unlock_write_set(region, txn->write_set, txn->wv);
 
     return COMMIT;
 }
@@ -134,7 +134,7 @@ bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, in
     return true;
 }
 
-void utils_update_and_unlock_write_set(region_t *region, write_set_t *set)
+void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int wv)
 {
     set_node_t *curr = set->head;
 
@@ -145,7 +145,8 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set)
 
         // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        versioned_write_spinlock_t_unlock(vws);
+        //versioned_write_spinlock_t_unlock(vws);
+        versioned_write_spinlock_t_update_and_unlock(vws, wv);
 
         curr = curr->next;
     }

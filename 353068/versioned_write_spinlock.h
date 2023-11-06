@@ -5,7 +5,7 @@
 #include "macros.h"
 #include "globals.h"
 
-#define MAX_LOCK_ATTEMPTS 5
+#define MAX_LOCK_ATTEMPTS 20
 #define BACKOFF_FACTOR 100
 
 typedef struct versioned_write_spinlock
@@ -16,7 +16,12 @@ typedef struct versioned_write_spinlock
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_destroy(versioned_write_spinlock_t *lock);
+
 bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock);
 void versioned_write_spinlock_t_unlock(versioned_write_spinlock_t *lock);
+
+void versioned_write_spinlock_t_update_and_unlock(versioned_write_spinlock_t *lock, int new_version);
+void versioned_write_spinlock_t_increment_and_update(versioned_write_spinlock_t *lock);
+
 bool versioned_write_spinlock_t_get_state(versioned_write_spinlock_t *lock);
 int versioned_write_spinlock_t_get_version(versioned_write_spinlock_t *lock);

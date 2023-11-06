@@ -31,6 +31,8 @@
         "utils.h": "c",
         "globals.h": "c",
         "dprint.h": "c",
-        "stdarg.h": "c"
+        "stdarg.h": "c",
+        "tm.h": "c",
+        "stdint.h": "c"
     }
 }

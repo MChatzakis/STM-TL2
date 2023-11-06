@@ -17,4 +17,4 @@ void utils_unlock_set(region_t *region, set_t *set, set_node_t *start, set_node_
 bool utils_check_commit(region_t *region, txn_t *txn);
 bool utils_validate_read_set(region_t *region, read_set_t *set, int rv);
 bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, int rv);
-void utils_update_and_unlock_write_set(region_t *region, write_set_t *set);
+void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int wv);

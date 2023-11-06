@@ -94,6 +94,8 @@ void tm_destroy(shared_t shared)
 {
     region_t *region = (region_t *)shared;
 
+    dprint_clog(COLOR_RED, stdout, "tm_destroy: Starting the deallocation\n");
+
     free(region->start);
 
     // Destroy the locks related to this region
@@ -105,6 +107,7 @@ void tm_destroy(shared_t shared)
     }
 
     assert(region->allocs == NULL);
+    
     free(region);
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: STM deallocated\n");
@@ -116,7 +119,6 @@ void tm_destroy(shared_t shared)
  **/
 void *tm_start(shared_t shared)
 {
-    // TODO: tm_start(shared_t)
     return ((region_t *)shared)->start;
 }
 
@@ -126,7 +128,6 @@ void *tm_start(shared_t shared)
  **/
 size_t tm_size(shared_t shared)
 {
-    // TODO: tm_size(shared_t)
     return ((region_t *)shared)->size;
 }
 
@@ -136,7 +137,6 @@ size_t tm_size(shared_t shared)
  **/
 size_t tm_align(shared_t shared)
 {
-    // TODO: tm_align(shared_t)
     return ((region_t *)shared)->align;
 }
 
@@ -349,7 +349,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     // Make sure alignment is correct
     size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, target, source);
+    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, source, target);
 
     //
     // TL2 Algorithm (Write intstruction):
@@ -369,11 +369,14 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         void *source_addr = (void *)source + i; // Source contents are the data to be written
         size_t word_size = align;
 
+        dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Word write from %lu to %lu\n", (tx_t)txn, source_addr, word_addr);
+
         // Add or update the entry of word_addr in the read set, setting the value to source_addr
         set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size);
     }
 
-    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Proceeding.\n", (tx_t)txn);
+    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
+    set_t_print(txn->write_set, true);
 
     // Normally in TL2, write txn proceeds.
     // If the actions can be commited is validated when the transaction ends
@@ -396,12 +399,15 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     size_t align = region->align;
     align = align < sizeof(segment_t *) ? sizeof(void *) : align;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_alloc: Allocating a new segment\n");
+    dprint_clog(COLOR_RESET, stdout, "tm_alloc[%lu]: Allocating a new segment\n", tx);
 
     // Allocate the memory for this new segment
     segment_t *sn;
-    if (unlikely(!posix_memalign((void **)&sn, align, sizeof(segment_t) + size)))
+    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size))){
+        dprint_clog(COLOR_RESET, stdout, "tm_alloc[%lu]: Something went wrong when memalign. Stoppping!\n", tx);
         return nomem_alloc;
+    }
+        
 
     // Insert the segment in the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
