@@ -6,7 +6,6 @@
 #include "globals.h"
 #include "dprint.h"
 
-#define BLOOM_FILTER_SIZE 10
 
 typedef struct
 {

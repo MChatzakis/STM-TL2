@@ -33,6 +33,8 @@
         "dprint.h": "c",
         "stdarg.h": "c",
         "tm.h": "c",
-        "stdint.h": "c"
+        "stdint.h": "c",
+        "pthread.h": "c",
+        "iosfwd": "c"
     }
 }

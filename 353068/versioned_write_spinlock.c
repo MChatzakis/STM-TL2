@@ -2,6 +2,7 @@
 
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <pthread.h>
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock)
 {
@@ -31,7 +32,8 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
         for (int i = 0; i < attempt * BACKOFF_FACTOR; i++)
         {
             // do nothing here
-        }
+            //pthread_yield_np();
+        } 
     }
 
     return LOCKED;

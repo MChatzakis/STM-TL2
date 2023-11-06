@@ -5,8 +5,7 @@
 #include "macros.h"
 #include "globals.h"
 
-#define MAX_LOCK_ATTEMPTS 20
-#define BACKOFF_FACTOR 100
+
 
 typedef struct versioned_write_spinlock
 {
