@@ -1,7 +1,7 @@
 #include "macros.h"
 
-#define DEBUG_PRINT true
-#define VWSL_NUM 1000
+#define DEBUG_PRINT false
+#define VWSL_NUM 10000
 
 #define LOCKED true
 #define UNLOCKED false

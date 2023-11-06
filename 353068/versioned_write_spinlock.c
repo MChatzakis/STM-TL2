@@ -37,12 +37,6 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
     return LOCKED;
 }
 
-void versioned_write_spinlock_t_increment_and_update(versioned_write_spinlock_t *lock)
-{
-    lock->version++;
-    atomic_store(&lock->lock, UNLOCKED);
-}
-
 void versioned_write_spinlock_t_update_and_unlock(versioned_write_spinlock_t *lock, int new_version)
 {
     lock->version = new_version;
