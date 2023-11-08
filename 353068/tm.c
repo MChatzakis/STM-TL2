@@ -441,6 +441,8 @@ bool tm_free(shared_t shared, tx_t unused(tx), void *target)
     region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
 
+    printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
+    
     dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
     // Remove from the linked list in a thread-safe way
