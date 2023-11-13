@@ -243,7 +243,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
         // Iterate over the words of the region to be read
         for (size_t i = 0; i < size; i += word_size)
         {
-            void *word_addr = (void *)source + i; // Source is the TM segment
+            void *word_addr = (char *) source + i; // Source is the TM segment
 
             // Get the versioned write spinlock for this word and validate it
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
@@ -287,8 +287,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
         // Iterate over the memory words (word_size = align)
         for (size_t i = 0; i < size; i += word_size)
         {
-            void *word_addr = (void *)source + i; // Source is the TM region to be read
-            void *targ_addr = target + i;         // Target is the memory that the value of the TM words will be stored
+            void *word_addr = (char *)source + i; // Source is the TM region to be read
+            void *targ_addr = (char *) target + i;         // Target is the memory that the value of the TM words will be stored
 
             // Update or add the source word to the read set.
             // Since this is a read instruction, no value to be added is needed
@@ -424,7 +424,7 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     // Set the target pointing to the first word of this newly allocated segment
     *target = segment;
 
-    printf("tm_alloc [%lu]:  Tm alloc called %lu\n", (tx_t)tx, segment);
+    //printf("tm_alloc [%lu]:  Tm alloc called %lu\n", (tx_t)tx, segment);
 
     return success_alloc;
 }
