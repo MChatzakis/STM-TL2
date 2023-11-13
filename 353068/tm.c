@@ -106,8 +106,8 @@ void tm_destroy(shared_t shared)
         versioned_write_spinlock_t_destroy(&region->versioned_write_spinlock[i]);
     }
 
-    //assert(region->allocs == NULL);
-    
+    // assert(region->allocs == NULL);
+
     free(region);
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: STM deallocated\n");
@@ -324,7 +324,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
         }
 
         dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, validated all locks and updated readset\n", (tx_t)txn);
-
     }
 
     dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Actions passed, txn can continue!\n", (tx_t)txn);
@@ -403,11 +402,11 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 
     // Allocate the memory for this new segment
     segment_t *sn;
-    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size))){
+    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size)))
+    {
         dprint_clog(COLOR_RESET, stdout, "tm_alloc[%lu]: Something went wrong when memalign. Stoppping!\n", tx);
         return nomem_alloc;
     }
-        
 
     // Insert the segment in the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
@@ -425,6 +424,8 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     // Set the target pointing to the first word of this newly allocated segment
     *target = segment;
 
+    printf("tm_alloc [%lu]:  Tm alloc called %lu\n", (tx_t)tx, segment);
+
     return success_alloc;
 }
 
@@ -436,21 +437,27 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
  **/
 bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 {
-    return true;
-    // Infer the SM region and the memory segment that that target points
+    // return true;
+    //  Infer the SM region and the memory segment that that target points
     region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
 
     printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
-    
+
     dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
     // Remove from the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
-    if (sn->prev)
+    /*if (sn->prev)
         sn->prev->next = sn->next;
     else
         region->allocs = sn->next;
+    if (sn->next)
+        sn->next->prev = sn->prev;*/
+    if (sn->prev)
+        sn->prev->next = sn->next;
+    else
+        ((struct region *)shared)->allocs = sn->next;
     if (sn->next)
         sn->next->prev = sn->prev;
     def_lock_t_unlock(&region->segment_list_lock);
