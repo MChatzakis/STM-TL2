@@ -219,8 +219,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     txn_t *txn = (txn_t *)tx;
 
     // Make sure the alignment is correct
-    size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
-    size_t word_size = align;
+    //size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
+    size_t word_size = region->align;
 
     dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Reading from %lu to %lu\n", (tx_t)txn, source, target);
 
@@ -293,7 +293,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             // Update or add the source word to the read set.
             // Since this is a read instruction, no value to be added is needed
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updating or adding to the read set address %lu\n", (tx_t)txn, word_addr);
-            set_t_add_or_update(txn->read_set, word_addr, NULL, align);
+            set_t_add_or_update(txn->read_set, word_addr, NULL, word_size);
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updated read set with address %lu\n", (tx_t)txn, word_addr);
 
             // Validate the txn by checking the lock associated with the current word.
@@ -346,7 +346,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     txn_t *txn = (txn_t *)tx;
 
     // Make sure alignment is correct
-    size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
+    //size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
 
     dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, source, target);
 
@@ -362,6 +362,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     //
 
     // Iterate the words of the segment (word_size = align)
+    size_t align = region->align;
     for (size_t i = 0; i < size; i += align)
     {
         void *word_addr = target + i;           // Target is the address of the segment in the TM
@@ -442,7 +443,7 @@ bool tm_free(shared_t shared, tx_t unused(tx), void *target)
     region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
 
-    printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
+    //printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
     dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 

@@ -10,7 +10,8 @@
 typedef struct versioned_write_spinlock
 {
     _Atomic bool lock; // When lock==false, the lock is free. When lock==true, the lock is held.
-    int version;
+    //int version;
+    _Atomic int version;
 } versioned_write_spinlock_t;
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock);
