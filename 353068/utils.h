@@ -18,3 +18,5 @@ bool utils_check_commit(region_t *region, txn_t *txn);
 bool utils_validate_read_set(region_t *region, read_set_t *set, int rv);
 bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, int rv);
 void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int wv);
+void utils_segment_list_insert(region_t *region, segment_t *sn);
+void utils_segment_list_remove(region_t *region, segment_t *sn);

@@ -151,3 +151,33 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
         curr = curr->next;
     }
 }
+
+void utils_segment_list_insert(region_t *region, segment_t *sn)
+{
+    def_lock_t_lock(&region->segment_list_lock);
+    sn->prev = NULL;
+    sn->next = region->allocs;
+    if (sn->next)
+        sn->next->prev = sn;
+    region->allocs = sn;
+    def_lock_t_unlock(&region->segment_list_lock);
+}
+
+void utils_segment_list_remove(region_t *region, segment_t *sn)
+{
+    def_lock_t_lock(&region->segment_list_lock);
+    /*if (sn->prev)
+        sn->prev->next = sn->next;
+    else
+        region->allocs = sn->next;
+    if (sn->next)
+        sn->next->prev = sn->prev;*/
+    if (sn->prev)
+        sn->prev->next = sn->next;
+    else
+       region->allocs = sn->next;
+    if (sn->next)
+        sn->next->prev = sn->prev;
+    def_lock_t_unlock(&region->segment_list_lock);
+
+}
