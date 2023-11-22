@@ -3,7 +3,7 @@
 txn_t *txn_t_init(bool is_ro, int rv, int wv)
 {
     txn_t *txn = (txn_t *)malloc(sizeof(txn_t));
-    if (!txn)
+    if (unlikely(!txn))
     {
         return NULL;
     }
@@ -12,7 +12,7 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     txn->rv = rv;
     txn->wv = wv;
     txn->read_set = set_t_init();
-    if (!txn->read_set)
+    if (unlikely(!txn->read_set))
     {
         free(txn);
         return NULL;

@@ -46,14 +46,14 @@ shared_t tm_create(size_t size, size_t align)
     region_t *region = (region_t *)malloc(sizeof(region_t));
     if (unlikely(!region))
     {
-        dprint_clog(COLOR_RED, stdout, "tm_create: Allocation for new TM region failed!\n");
+        dprint_cwarn(COLOR_RED, stdout, "tm_create: Allocation for new TM region failed!\n");
         return invalid_shared;
     }
 
     // Allign and allocate start memory for the shared region (word_size=align)
     if (unlikely(posix_memalign(&(region->start), align, size)))
     {
-        dprint_clog(COLOR_RED, stdout, "tm_create: Allocation of start location of TM failed!\n");
+        dprint_cwarn(COLOR_RED, stdout, "tm_create: Allocation of start location of TM failed!\n");
         free(region);
         return invalid_shared;
     }
@@ -61,7 +61,7 @@ shared_t tm_create(size_t size, size_t align)
     // Initialize the segment_list lock
     if (unlikely(!def_lock_t_init(&region->segment_list_lock)))
     {
-        dprint_clog(COLOR_RED, stdout, "tm_create: Allocation of segment lock of the TM failed!\n");
+        dprint_cwarn(COLOR_RED, stdout, "tm_create: Allocation of segment lock of the TM failed!\n");
         free(region->start);
         free(region);
         return invalid_shared;
@@ -158,7 +158,7 @@ tx_t tm_begin(shared_t shared, bool is_ro)
     txn_t *txn = txn_t_init(is_ro, global_versioned_clock_t_get_clock(&region->global_versioned_clock), -1);
     if (unlikely(!txn))
     {
-        dprint_clog(COLOR_RED, stdout, "tm_begin: Could not allocate a new transaction\n");
+        dprint_cwarn(COLOR_RESET, stdout, "tm_begin: Could not allocate a new transaction\n");
         return invalid_tx;
     }
 
@@ -253,13 +253,10 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
-                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
+                dprint_cwarn(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
                 return false;
             }
         }
-
-        // Optimization: If all spinlocks are validated, copy the new values at once
-        // memcpy(target, source, size);
 
         dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Read only txn, validated all locks and copied the values\n", (tx_t)txn);
     }
@@ -291,13 +288,18 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
         // Iterate over the memory words (word_size = align)
         for (size_t i = 0; i < size; i += word_size)
         {
-            void *word_addr = (char *)source + i; // Source is the TM region to be read
-            void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
+            void *word_addr = (char *) source + i; // Source is the TM region to be read
+            void *targ_addr = (char *) target + i; // Target is the memory that the value of the TM words will be stored
 
             // Update or add the source word to the read set.
             // Since this is a read instruction, no value to be added is needed
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updating or adding to the read set address %lu\n", (tx_t)txn, word_addr);
-            set_t_add_or_update(txn->read_set, word_addr, NULL, word_size);
+            
+            if(unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size))){
+                dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
+                exit(EXIT_FAILURE);
+            }
+
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updated read set with address %lu\n", (tx_t)txn, word_addr);
 
             // Validate the txn by checking the lock associated with the current word.
@@ -306,7 +308,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
-                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                dprint_cwarn(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 return false;
             }
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Validated lock of address %lu\n", (tx_t)txn, word_addr);
@@ -369,8 +371,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     size_t align = region->align;
     for (size_t i = 0; i < size; i += align)
     {
-        void *word_addr = (char *)target + i;   // Target is the address of the segment in the TM
-        void *source_addr = (char *)source + i; // Source contents are the data to be written
+        void *word_addr = (char *) target + i;   // Target is the address of the segment in the TM
+        void *source_addr = (char *) source + i; // Source contents are the data to be written
         size_t word_size = align;
 
         dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Word write from %lu to %lu\n", (tx_t)txn, source_addr, word_addr);
@@ -378,7 +380,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         // Add or update the entry of word_addr in the read set, setting the value to source_addr
         if (unlikely(!set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size)))
         {
-            dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Something went wrong when adding data to write-set.\n", (tx_t)txn);
+            dprint_cwarn(COLOR_RESET, stdout, "tm_write[%lu]:  Something went wrong when adding data to write-set.\n", (tx_t)txn);
             exit(EXIT_FAILURE);
         }
     }
@@ -413,7 +415,7 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     segment_t *sn;
     if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size)))
     {
-        dprint_clog(COLOR_RESET, stdout, "tm_alloc[%lu]: Something went wrong when memalign. Stoppping!\n", tx);
+        dprint_cwarn(COLOR_RESET, stdout, "tm_alloc[%lu]: Something went wrong when memalign. Stoppping!\n", tx);
         return nomem_alloc;
     }
 
@@ -457,12 +459,6 @@ bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 
     // Remove from the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
-    /*if (sn->prev)
-        sn->prev->next = sn->next;
-    else
-        region->allocs = sn->next;
-    if (sn->next)
-        sn->next->prev = sn->prev;*/
     if (sn->prev)
         sn->prev->next = sn->next;
     else

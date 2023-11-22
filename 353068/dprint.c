@@ -15,7 +15,7 @@ void dprint_clog(char *color, FILE *stream, const char *str, ...)
     va_end(args);
 }
 
-void dprint_log(char *color, FILE *stream, const char *str, ...)
+void dprint_cwarn(char *color, FILE *stream, const char *str, ...)
 {
     if (!DEBUG_PRINT)
     {
@@ -29,5 +29,8 @@ void dprint_log(char *color, FILE *stream, const char *str, ...)
     vfprintf(stream, COLOR_RESET, args);
     va_end(args);
 }
+
+
+
 
 

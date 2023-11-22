@@ -165,12 +165,6 @@ void utils_segment_list_insert(region_t *region, segment_t *sn)
 void utils_segment_list_remove(region_t *region, segment_t *sn)
 {
     def_lock_t_lock(&region->segment_list_lock);
-    /*if (sn->prev)
-        sn->prev->next = sn->next;
-    else
-        region->allocs = sn->next;
-    if (sn->next)
-        sn->next->prev = sn->prev;*/
     if (sn->prev)
         sn->prev->next = sn->next;
     else

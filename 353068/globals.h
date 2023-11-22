@@ -1,6 +1,7 @@
 #include "macros.h"
 
 #define DEBUG_PRINT false
+#define ENABLE_WARNINGS true
 
 #define VWSL_NUM 10000
 #define BLOOM_FILTER_SIZE 50
