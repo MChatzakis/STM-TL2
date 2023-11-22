@@ -145,7 +145,6 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
         // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        //versioned_write_spinlock_t_unlock(vws);
         versioned_write_spinlock_t_update_and_unlock(vws, wv);
 
         curr = curr->next;

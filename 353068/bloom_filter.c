@@ -10,7 +10,7 @@ bloom_filter_t *bloom_filter_t_create()
         return NULL;
     }
 
-    //memset(bf->filter, 0, sizeof(bool) * BLOOM_FILTER_SIZE); // is sizeof(bool ok??)
+    memset(bf->filter, 0, sizeof(bool) * BLOOM_FILTER_SIZE); // is sizeof(bool ok??)
     return bf;
 }
 

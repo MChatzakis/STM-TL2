@@ -117,11 +117,10 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *curr = set->head;
 
-
-    if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
+    /*if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
     {
         return set_t_add(set, addr, val, size);
-    }
+    }*/
 
     while (curr)
     {
@@ -141,10 +140,10 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 {   
     set_node_t *curr = set->head;
 
-    if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
+    /*if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
     {
         return NULL;
-    }
+    }*/
 
     while (curr)
     {
