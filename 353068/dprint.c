@@ -17,7 +17,7 @@ void dprint_clog(char *color, FILE *stream, const char *str, ...)
 
 void dprint_cwarn(char *color, FILE *stream, const char *str, ...)
 {
-    if (!DEBUG_PRINT)
+    if (!ENABLE_WARNINGS)
     {
         return;
     }

@@ -253,7 +253,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
-                dprint_cwarn(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
                 return false;
             }
         }
@@ -308,7 +308,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
-                dprint_cwarn(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 return false;
             }
             dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Validated lock of address %lu\n", (tx_t)txn, word_addr);
