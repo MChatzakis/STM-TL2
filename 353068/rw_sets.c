@@ -173,3 +173,38 @@ void set_t_print(set_t *set, bool print_bloom){
 
     return;
 }
+
+void set_t_delete_if_exists(set_t *set, void *addr){
+    set_node_t *curr = set->head;
+    set_node_t *prev = NULL;
+
+    while (curr)
+    {
+        if (curr->addr == addr)
+        {
+            if (prev)
+            {
+                prev->next = curr->next;
+            }
+            else
+            {
+                set->head = curr->next;
+            }
+
+            if (!curr->next)
+            {
+                set->tail = prev;
+            }
+
+            free(curr->val);
+            free(curr);
+
+            return;
+        }
+
+        prev = curr;
+        curr = curr->next;
+    }
+
+    return;
+}

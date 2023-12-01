@@ -162,7 +162,8 @@ tx_t tm_begin(shared_t shared, bool is_ro)
         return invalid_tx;
     }
 
-    dprint_clog(COLOR_RESET, stdout, "tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
+    // dprint_clog(COLOR_RESET, stdout, "tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
+    // printf("tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     return (tx_t)txn;
 }
@@ -217,9 +218,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
     // Infer the region and txn that this write is associated with
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
-
-    // Make sure the alignment is correct
-    // size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
     size_t word_size = region->align;
 
     dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Reading from %lu to %lu\n", (tx_t)txn, source, target);
@@ -246,7 +244,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             void *word_addr = (char *)source + i; // Source is the TM segment
             void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
-            // memcpy(target, source, word_size);
             memcpy(targ_addr, word_addr, word_size);
 
             // Get the versioned write spinlock for this word and validate it
@@ -288,19 +285,10 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
         // Iterate over the memory words (word_size = align)
         for (size_t i = 0; i < size; i += word_size)
         {
-            void *word_addr = (char *) source + i; // Source is the TM region to be read
-            void *targ_addr = (char *) target + i; // Target is the memory that the value of the TM words will be stored
+            void *word_addr = (char *)source + i; // Source is the TM region to be read
+            void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
-            // Update or add the source word to the read set.
-            // Since this is a read instruction, no value to be added is needed
-            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updating or adding to the read set address %lu\n", (tx_t)txn, word_addr);
-            
-            if(unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size))){
-                dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
-                exit(EXIT_FAILURE);
-            }
-
-            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, updated read set with address %lu\n", (tx_t)txn, word_addr);
+        
 
             // Validate the txn by checking the lock associated with the current word.
             // If the version is consinstent, proceed with the load
@@ -323,6 +311,12 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             }
             else
             {
+                if (unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size)))
+                {
+                    dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
+                    exit(EXIT_FAILURE);
+                }
+
                 // Else, just write the value that this word already has
                 dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did not appear in the write set.\n", (tx_t)txn);
                 memcpy(targ_addr, word_addr, word_size);
@@ -351,9 +345,6 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
-    // Make sure alignment is correct
-    // size_t align = region->align < sizeof(struct segment_node *) ? sizeof(void *) : region->align;
-
     dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, source, target);
 
     //
@@ -371,18 +362,21 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     size_t align = region->align;
     for (size_t i = 0; i < size; i += align)
     {
-        void *word_addr = (char *) target + i;   // Target is the address of the segment in the TM
-        void *source_addr = (char *) source + i; // Source contents are the data to be written
+        void *word_addr = (char *)target + i;   // Target is the address of the segment in the TM
+        void *source_addr = (char *)source + i; // Source contents are the data to be written
         size_t word_size = align;
 
         dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Word write from %lu to %lu\n", (tx_t)txn, source_addr, word_addr);
 
-        // Add or update the entry of word_addr in the read set, setting the value to source_addr
+        // Add or update the entry of word_addr in the write set, setting the value to source_addr
         if (unlikely(!set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size)))
         {
             dprint_cwarn(COLOR_RESET, stdout, "tm_write[%lu]:  Something went wrong when adding data to write-set.\n", (tx_t)txn);
             exit(EXIT_FAILURE);
         }
+
+        // Delete the entry of word_addr from the read set, if it exists
+        set_t_delete_if_exists(txn->read_set, word_addr);
     }
 
     dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
@@ -413,7 +407,7 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 
     // Allocate the memory for this new segment
     segment_t *sn;
-    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size)))
+    if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size) != 0))
     {
         dprint_cwarn(COLOR_RESET, stdout, "tm_alloc[%lu]: Something went wrong when memalign. Stoppping!\n", tx);
         return nomem_alloc;
@@ -448,21 +442,21 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
  **/
 bool tm_free(shared_t shared, tx_t unused(tx), void *target)
 {
-    return true;
-    //  Infer the SM region and the memory segment that that target points
+    // return true;
+    //   Infer the SM region and the memory segment that that target points
     region_t *region = (region_t *)shared;
     segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
 
-    // printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
+    printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
-    dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
+    // dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
 
     // Remove from the linked list in a thread-safe way
     def_lock_t_lock(&region->segment_list_lock);
     if (sn->prev)
         sn->prev->next = sn->next;
     else
-        ((struct region *)shared)->allocs = sn->next;
+        region->allocs = sn->next;
     if (sn->next)
         sn->next->prev = sn->prev;
     def_lock_t_unlock(&region->segment_list_lock);
