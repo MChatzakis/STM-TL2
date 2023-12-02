@@ -121,12 +121,13 @@ bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
 
 bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, int rv)
 {
-    if (versioned_write_spinlock_t_get_state(vws) == LOCKED)
-    {
+    int l = versioned_write_spinlock_t_load(vws);
+
+    if (l & 0x1) {
         return false;
     }
 
-    if (versioned_write_spinlock_t_get_version(vws) > rv)
+    if ((l >> 1) > rv)
     {
         return false;
     }
@@ -145,7 +146,9 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
         // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        versioned_write_spinlock_t_update_and_unlock(vws, wv);
+        //versioned_write_spinlock_t_update_and_unlock(vws, wv);
+        versioned_write_spinlock_t_update_version(vws, wv);
+        versioned_write_spinlock_t_unlock(vws);
 
         curr = curr->next;
     }

@@ -3,11 +3,8 @@
 #define DEBUG_PRINT false
 #define ENABLE_WARNINGS true
 
-#define VWSL_NUM 100000000
+#define VWSL_NUM 10000
 #define BLOOM_FILTER_SIZE 50
-
-#define MAX_LOCK_ATTEMPTS 300
-#define BACKOFF_FACTOR 100
 
 #define LOCKED true
 #define UNLOCKED false

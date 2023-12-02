@@ -288,8 +288,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             void *word_addr = (char *)source + i; // Source is the TM region to be read
             void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
-        
-
             // Validate the txn by checking the lock associated with the current word.
             // If the version is consinstent, proceed with the load
             // Else, the txn aborts
@@ -359,12 +357,12 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     //
 
     // Iterate the words of the segment (word_size = align)
-    size_t align = region->align;
-    for (size_t i = 0; i < size; i += align)
+    //size_t align = region->align;
+    for (size_t i = 0; i < size; i += region->align)
     {
         void *word_addr = (char *)target + i;   // Target is the address of the segment in the TM
         void *source_addr = (char *)source + i; // Source contents are the data to be written
-        size_t word_size = align;
+        size_t word_size = region->align;
 
         dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Word write from %lu to %lu\n", (tx_t)txn, source_addr, word_addr);
 
@@ -379,8 +377,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         set_t_delete_if_exists(txn->read_set, word_addr);
     }
 
-    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
-    set_t_print(txn->write_set, true);
+    //dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
+    //set_t_print(txn->write_set, true);
 
     // Normally in TL2, write txn proceeds.
     // If the actions can be commited is validated when the transaction ends
@@ -440,29 +438,7 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
  * @param target Address of the first byte of the previously allocated segment to deallocate
  * @return Whether the whole transaction can continue
  **/
-bool tm_free(shared_t shared, tx_t unused(tx), void *target)
+bool tm_free(shared_t unused(shared), tx_t unused(tx), void *unused(target))
 {
-    // return true;
-    //   Infer the SM region and the memory segment that that target points
-    region_t *region = (region_t *)shared;
-    segment_t *sn = (segment_t *)((uintptr_t)target - sizeof(segment_t)); // Implementation: a memory segment is [ptr,ptr,words]
-
-    printf("tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
-
-    // dprint_clog(COLOR_RESET, stdout, "tm_free [%lu]:  Freeing address %lu\n", (tx_t)tx, target);
-
-    // Remove from the linked list in a thread-safe way
-    def_lock_t_lock(&region->segment_list_lock);
-    if (sn->prev)
-        sn->prev->next = sn->next;
-    else
-        region->allocs = sn->next;
-    if (sn->next)
-        sn->next->prev = sn->prev;
-    def_lock_t_unlock(&region->segment_list_lock);
-
-    // Free the memory allocated for this segment
-    free(sn);
-
     return true;
 }

@@ -35,6 +35,7 @@
         "tm.h": "c",
         "stdint.h": "c",
         "pthread.h": "c",
-        "iosfwd": "c"
+        "iosfwd": "c",
+        "bloom_filter.h": "c"
     }
 }
