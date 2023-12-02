@@ -20,3 +20,4 @@
 #define COLOR_RESET "\x1b[0m"
 
 #define ID VcEicfD4QjwjBasjGdnDLWszIXK4U4OF
+// python3 submit.py --uuid VcEicfD4QjwjBasjGdnDLWszIXK4U4OF 353068.zip
