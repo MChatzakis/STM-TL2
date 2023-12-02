@@ -96,6 +96,7 @@ void tm_destroy(shared_t shared)
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: Starting the deallocation\n");
 
+    // Free the start address of the region
     free(region->start);
 
     // Destroy the locks related to this region
@@ -106,8 +107,23 @@ void tm_destroy(shared_t shared)
         versioned_write_spinlock_t_destroy(&region->versioned_write_spinlock[i]);
     }
 
-    // assert(region->allocs == NULL);
+    // Free all the allocated segments
+    if (region->allocs != NULL)
+    {
+        segment_t *curr = region->allocs;
+        segment_t *next = curr->next;
 
+        while (next)
+        {
+            free(curr);
+            curr = next;
+            next = curr->next;
+        }
+
+        free(curr);
+    }
+
+    // Free the region struct
     free(region);
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: STM deallocated\n");
@@ -158,12 +174,11 @@ tx_t tm_begin(shared_t shared, bool is_ro)
     txn_t *txn = txn_t_init(is_ro, global_versioned_clock_t_get_clock(&region->global_versioned_clock), -1);
     if (unlikely(!txn))
     {
-        dprint_cwarn(COLOR_RESET, stdout, "tm_begin: Could not allocate a new transaction\n");
+        dprint_cwarn(COLOR_RESET, stdout, "tm_begin: Could not allocate a new transaction!\n");
         return invalid_tx;
     }
 
     // dprint_clog(COLOR_RESET, stdout, "tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
-    // printf("tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     return (tx_t)txn;
 }
@@ -244,15 +259,34 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             void *word_addr = (char *)source + i; // Source is the TM segment
             void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
-            memcpy(targ_addr, word_addr, word_size);
-
             // Get the versioned write spinlock for this word and validate it
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
-            if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
+            /*if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
                 dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Aborting...\n", (tx_t)txn);
+                //txn_t_destroy(txn);
+                return ABORT;
+            }*/
+            int l = versioned_write_spinlock_t_load(vws);
+            int readv = l >> 1;
+            if (l & 0x1 || (readv > txn->rv))
+            {
+                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 return false;
             }
+
+            memcpy(targ_addr, word_addr, word_size);
+
+            int n = versioned_write_spinlock_t_load(vws);
+            int after_readv = n >> 1;
+            if (n & 0x1 || after_readv != readv)
+            {
+                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                return false;
+            }
+
+
+            //memcpy(targ_addr, word_addr, word_size);
         }
 
         dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Read only txn, validated all locks and copied the values\n", (tx_t)txn);
@@ -288,10 +322,54 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             void *word_addr = (char *)source + i; // Source is the TM region to be read
             void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
+            // Check if the source_word appears in the write set.
+            void *val = set_t_get_val_or_null(txn->write_set, word_addr);
+            if (val != NULL)
+            {
+                // If this txn plans to write this word, update it with the current value
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did appear in the write set.\n", (tx_t)txn);
+                memcpy(targ_addr, val, word_size);
+                continue;
+            }
+
+            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
+            /*if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
+            {
+                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                return false;
+            }*/
+            //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Validated lock of address %lu\n", (tx_t)txn, word_addr);
+            int l = versioned_write_spinlock_t_load(vws);
+            int readv = l >> 1;
+            if (l & 0x1 || (readv > txn->rv))
+            {
+                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                return false;
+            }
+
+            memcpy(targ_addr, word_addr, word_size);
+
+            int n = versioned_write_spinlock_t_load(vws);
+            int after_readv = n >> 1;
+            if (n & 0x1 || after_readv != readv)
+            {
+                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                return false;
+            }
+
+            if (unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size)))
+            {
+                dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
+                exit(EXIT_FAILURE);
+            }
+
+            // Else, just write the value that this word already has
+            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did not appear in the write set.\n", (tx_t)txn);
+
             // Validate the txn by checking the lock associated with the current word.
             // If the version is consinstent, proceed with the load
             // Else, the txn aborts
-            versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
+            /*versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
             if (!utils_validate_versioned_write_spinlock(vws, txn->rv))
             {
                 dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
@@ -318,7 +396,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 // Else, just write the value that this word already has
                 dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did not appear in the write set.\n", (tx_t)txn);
                 memcpy(targ_addr, word_addr, word_size);
-            }
+            }*/
         }
 
         dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, validated all locks and updated readset\n", (tx_t)txn);
@@ -357,7 +435,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     //
 
     // Iterate the words of the segment (word_size = align)
-    //size_t align = region->align;
+    // size_t align = region->align;
     for (size_t i = 0; i < size; i += region->align)
     {
         void *word_addr = (char *)target + i;   // Target is the address of the segment in the TM
@@ -370,6 +448,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         if (unlikely(!set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size)))
         {
             dprint_cwarn(COLOR_RESET, stdout, "tm_write[%lu]:  Something went wrong when adding data to write-set.\n", (tx_t)txn);
+            //txn_t_destroy(txn);
             exit(EXIT_FAILURE);
         }
 
@@ -377,8 +456,8 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         //set_t_delete_if_exists(txn->read_set, word_addr);
     }
 
-    //dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
-    //set_t_print(txn->write_set, true);
+    // dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
+    // set_t_print(txn->write_set, true);
 
     // Normally in TL2, write txn proceeds.
     // If the actions can be commited is validated when the transaction ends

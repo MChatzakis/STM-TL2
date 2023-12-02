@@ -41,7 +41,7 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
         }
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        //assert(atomic_load(&vwsl->lock_and_version) & 0x1);
+        // assert(atomic_load(&vwsl->lock_and_version) & 0x1);
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -50,10 +50,10 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
 
 /**
  * @brief Validates whether or not a write transaction is able to commit
- * 
+ *
  * @param region Shared memory region associated with the transaction
  * @param txn Write transaction trying to commit
- * @return COMMIT(true)/ABORT(false) if the transaction can commit or not 
+ * @return COMMIT(true)/ABORT(false) if the transaction can commit or not
  */
 bool utils_check_commit(region_t *region, txn_t *txn)
 {
@@ -61,7 +61,7 @@ bool utils_check_commit(region_t *region, txn_t *txn)
     // TL2 Algorithm (Commiting a write txn)
     //
     // In order to commit:
-    //  - Try to lock the write set of the txn (using spinning). 
+    //  - Try to lock the write set of the txn (using spinning).
     //      > ABORT if not all locks are succesfully acquired
     //  - Increment and Fetch the Global version clock and store in txn.wv
     //  - Validate read-set. Check that for each entry in the read set the versioned number of the lock:
@@ -108,7 +108,6 @@ bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
     while (curr)
     {
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-
         if (!utils_validate_versioned_write_spinlock(vws, rv))
         {
             return false;
@@ -123,12 +122,7 @@ bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
 bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, int rv)
 {
     int l = versioned_write_spinlock_t_load(vws);
-
-    if (l & 0x1) {
-        return false;
-    }
-
-    if ((l >> 1) > rv)
+    if (l & 0x1 || ((l >> 1) > rv))
     {
         return false;
     }
@@ -142,13 +136,10 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
     while (curr)
     {
-        // 1. update:
         memcpy(curr->addr, curr->val, curr->size);
 
-        // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        //assert(atomic_load(&vws->lock_and_version) & 0x1);
-        versioned_write_spinlock_t_update_version(vws, wv);
+        versioned_write_spinlock_t_update_version(vws, wv); // Updates and unlocks
 
         curr = curr->next;
     }

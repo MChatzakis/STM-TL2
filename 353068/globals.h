@@ -1,6 +1,6 @@
 #include "macros.h"
 
-#define DEBUG_PRINT true
+#define DEBUG_PRINT false
 #define ENABLE_WARNINGS true
 
 #define VWSL_NUM 100000

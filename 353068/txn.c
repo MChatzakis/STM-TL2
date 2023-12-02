@@ -19,7 +19,7 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     }
 
     txn->write_set = set_t_init();
-    if (!txn->write_set)
+    if (unlikely(!txn->write_set))
     {
         set_t_destroy(txn->read_set);
         free(txn);
