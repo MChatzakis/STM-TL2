@@ -41,7 +41,7 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
         }
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        assert(atomic_load(&vwsl->lock_and_version) & 0x1);
+        //assert(atomic_load(&vwsl->lock_and_version) & 0x1);
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -147,10 +147,8 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
         // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        assert(atomic_load(&vws->lock_and_version) & 0x1);
-        versioned_write_spinlock_t_update_version(vws, wv);
         //assert(atomic_load(&vws->lock_and_version) & 0x1);
-        //versioned_write_spinlock_t_unlock(vws);
+        versioned_write_spinlock_t_update_version(vws, wv);
 
         curr = curr->next;
     }

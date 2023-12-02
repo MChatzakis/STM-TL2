@@ -3,7 +3,6 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <pthread.h>
-#include <assert.h>
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock)
 {
