@@ -41,6 +41,7 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
         }
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
+        assert(atomic_load(&vwsl->lock_and_version) & 0x1);
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -146,34 +147,11 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
         // 2. release lock
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        //versioned_write_spinlock_t_update_and_unlock(vws, wv);
+        assert(atomic_load(&vws->lock_and_version) & 0x1);
         versioned_write_spinlock_t_update_version(vws, wv);
-        versioned_write_spinlock_t_unlock(vws);
+        //assert(atomic_load(&vws->lock_and_version) & 0x1);
+        //versioned_write_spinlock_t_unlock(vws);
 
         curr = curr->next;
     }
-}
-
-void utils_segment_list_insert(region_t *region, segment_t *sn)
-{
-    def_lock_t_lock(&region->segment_list_lock);
-    sn->prev = NULL;
-    sn->next = region->allocs;
-    if (sn->next)
-        sn->next->prev = sn;
-    region->allocs = sn;
-    def_lock_t_unlock(&region->segment_list_lock);
-}
-
-void utils_segment_list_remove(region_t *region, segment_t *sn)
-{
-    def_lock_t_lock(&region->segment_list_lock);
-    if (sn->prev)
-        sn->prev->next = sn->next;
-    else
-       region->allocs = sn->next;
-    if (sn->next)
-        sn->next->prev = sn->prev;
-    def_lock_t_unlock(&region->segment_list_lock);
-
 }

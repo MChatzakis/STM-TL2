@@ -374,7 +374,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         }
 
         // Delete the entry of word_addr from the read set, if it exists
-        set_t_delete_if_exists(txn->read_set, word_addr);
+        //set_t_delete_if_exists(txn->read_set, word_addr);
     }
 
     //dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Added all data to the write set. Printing the write set now:\n", (tx_t)txn);
@@ -426,8 +426,6 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
 
     // Set the target pointing to the first word of this newly allocated segment
     *target = segment;
-
-    // printf("tm_alloc [%lu]:  Tm alloc called %lu\n", (tx_t)tx, segment);
 
     return success_alloc;
 }
