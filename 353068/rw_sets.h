@@ -82,9 +82,6 @@ typedef struct read_set_node
 typedef struct read_set
 {
     read_set_node_t *head;
-    read_set_node_t *tail;
-
-    bool bloom_filter[BLOOM_FILTER_SIZE];
 } read_set_t;
 
 /**
