@@ -90,13 +90,6 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
     }
 }
 
-/**
- * @brief Validates whether or not a write transaction is able to commit
- *
- * @param region Shared memory region associated with the transaction
- * @param txn Write transaction trying to commit
- * @return COMMIT(true)/ABORT(false) if the transaction can commit or not
- */
 bool utils_check_commit(region_t *region, txn_t *txn)
 {
     //

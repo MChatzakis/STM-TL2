@@ -5,9 +5,10 @@
 #include <pthread.h>
 
 /*
-    Versioned write spinlock implementation
+    =======
+    Versioned write spinlock implementations
+    =======
 */
-
 
 void versioned_write_spinlock_t_init(versioned_write_spinlock_t *lock)
 {
@@ -24,7 +25,8 @@ bool versioned_write_spinlock_t_lock(versioned_write_spinlock_t *lock)
     int l = atomic_load(&lock->lock_and_version);
 
     // Check if lock is already taken
-    if (l & 0x1) {
+    if (l & 0x1)
+    {
         return false;
     }
 
@@ -48,7 +50,9 @@ int versioned_write_spinlock_t_load(versioned_write_spinlock_t *lock)
 }
 
 /*
-    Global versioned clock implementation
+    =======
+    Global versioned clock implementations
+    =======
 */
 
 void global_versioned_clock_t_init(global_versioned_clock_t *global_versioned_clock)
@@ -72,7 +76,9 @@ int global_versioned_clock_t_increment_and_fetch(global_versioned_clock_t *globa
 }
 
 /*
-    Default lock implementation
+    =======
+    Default lock implementations
+    =======
 */
 int def_lock_t_lock(def_lock_t *lock)
 {

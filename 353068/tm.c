@@ -4,10 +4,34 @@
  *
  * @section LICENSE
  *
- * [...]
+ * MIT License
  *
- * @section Software transactional memory implementing TL2 algorithm.
+ * Copyright (c) [year] [fullname]
  *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal 
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * @section DESCRIPTION
+ *
+ * This is a custom implementation of a Software Transactional Memory (STM) library.
+ * It is based on the TL2 algorithm, and it is implemented in C11, using atomic operations.
+ * 
+ * Every structure is implemented from scratch, including the locks, the sets, the versioned write spinlocks, etc.
  *
  **/
 
@@ -194,7 +218,7 @@ bool tm_end(shared_t shared, tx_t tx)
     dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: (Begin) rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     bool commit_result;
-    if (txn->is_ro)
+    if (txn->is_ro || txn->write_set->head == NULL)
     {
         // Read-only txns are validated each time they read a word
         // Reaching this point means that all the reads are succesfully validated
@@ -428,8 +452,6 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
     size_t align = region->align;
     align = align < sizeof(segment_t *) ? sizeof(void *) : align;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_alloc[%lu]: Allocating a new segment\n", tx);
-
     // Allocate the memory for this new segment
     segment_t *sn;
     if (unlikely(posix_memalign((void **)&sn, align, sizeof(segment_t) + size) != 0))
@@ -465,5 +487,6 @@ alloc_t tm_alloc(shared_t shared, tx_t unused(tx), size_t size, void **target)
  **/
 bool tm_free(shared_t unused(shared), tx_t unused(tx), void *unused(target))
 {
+    // Note: All the segments allocated by any txn will be freed when the region is destroyed.
     return true;
 }
