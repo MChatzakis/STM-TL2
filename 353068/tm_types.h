@@ -4,9 +4,7 @@
 #include "macros.h"
 
 #include "globals.h"
-#include "def_lock.h"
-#include "versioned_write_spinlock.h"
-#include "global_versioned_clock.h"
+#include "locks.h"
 #include "dprint.h"
 
 /**

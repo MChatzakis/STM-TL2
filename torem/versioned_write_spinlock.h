@@ -5,8 +5,6 @@
 #include "macros.h"
 #include "globals.h"
 
-
-
 typedef struct versioned_write_spinlock
 {
     _Atomic int lock_and_version;

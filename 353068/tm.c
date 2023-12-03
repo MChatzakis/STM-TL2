@@ -170,7 +170,6 @@ tx_t tm_begin(shared_t shared, bool is_ro)
     // TL2 Algorithm:
     // Sample load the current value of the global version clock as rv
 
-    // Initialize txn and set rv. The wv is initialized with -1
     txn_t *txn = txn_t_init(is_ro, global_versioned_clock_t_get_clock(&region->global_versioned_clock), -1);
     if (unlikely(!txn))
     {
@@ -330,6 +329,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             if (l & 0x1 || (readv > txn->rv))
             {
                 //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                txn_t_destroy(txn);
                 return false;
             }
 
