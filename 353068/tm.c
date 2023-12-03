@@ -28,7 +28,6 @@
 
 #include "globals.h"
 #include "tm_types.h"
-#include "txn.h"
 #include "utils.h"
 #include "dprint.h"
 #include "rw_sets.h"

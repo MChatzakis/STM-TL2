@@ -9,7 +9,20 @@
 #include "globals.h"
 #include "tm_types.h"
 #include "rw_sets.h"
-#include "txn.h"
+
+typedef struct txn
+{
+    bool is_ro;
+
+    read_set_t *read_set;
+    write_set_t *write_set;
+
+    int rv;
+    int wv;
+} txn_t;
+
+txn_t *txn_t_init(bool is_ro, int rv, int wv);
+void txn_t_destroy(txn_t *txn);
 
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr);
 bool utils_try_lock_set(region_t *region, set_t *set);

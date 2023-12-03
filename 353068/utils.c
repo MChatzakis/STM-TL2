@@ -2,9 +2,57 @@
 
 #include <string.h>
 
+txn_t *txn_t_init(bool is_ro, int rv, int wv)
+{
+    txn_t *txn = (txn_t *)malloc(sizeof(txn_t));
+    if (unlikely(!txn))
+    {
+        return NULL;
+    }
+
+    txn->is_ro = is_ro;
+    txn->rv = rv;
+    txn->wv = wv;
+    txn->read_set = set_t_init();
+    if (unlikely(!txn->read_set))
+    {
+        free(txn);
+        return NULL;
+    }
+
+    txn->write_set = set_t_init();
+    if (unlikely(!txn->write_set))
+    {
+        set_t_destroy(txn->read_set);
+        free(txn);
+        return NULL;
+    }
+
+    return txn;
+}
+
+void txn_t_destroy(txn_t *txn)
+{
+    set_t_destroy(txn->read_set);
+    set_t_destroy(txn->write_set);
+
+    free(txn);
+}
+
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
 {
-    return &locks[(uintptr_t)addr % VWSL_NUM];
+    // Choose a prime number for better distribution
+    uintptr_t hash = 5381;
+    uintptr_t address = (uintptr_t)addr;
+    // Mix the bits of the address using bitwise operations
+    while (address != 0) {
+        int ch = address & 0xFF;
+        hash = ((hash << 5) + hash) + ch; // hash * 33 + ch
+        address >>= 8;
+    }
+
+
+    return &locks[hash % VWSL_NUM];
 }
 
 bool utils_try_lock_set(region_t *region, set_t *set)
