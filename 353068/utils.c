@@ -42,17 +42,18 @@ void txn_t_destroy(txn_t *txn)
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
 {
     // Choose a prime number for better distribution
-    uintptr_t hash = 5381;
-    uintptr_t address = (uintptr_t)addr;
-    // Mix the bits of the address using bitwise operations
-    while (address != 0) {
-        int ch = address & 0xFF;
-        hash = ((hash << 5) + hash) + ch; // hash * 33 + ch
-        address >>= 8;
-    }
+    
+    uintptr_t x = (uintptr_t)addr;
+    
+    //x = ((x >> 16) ^ x) * 0x45d9f3b;
+    //x = ((x >> 16) ^ x) * 0x45d9f3b;
+    //x = (x >> 16) ^ x;
 
+    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    x = x ^ (x >> 31);
 
-    return &locks[hash % VWSL_NUM];
+    return &locks[x % VWSL_NUM];
 }
 
 bool utils_try_lock_set(region_t *region, set_t *set)
@@ -122,6 +123,8 @@ bool utils_check_commit(region_t *region, txn_t *txn)
     //      a. Apply the writing to the memory location
     //      b. Release the lock
     //
+
+    // The write set it ordered here.
 
     // Try to lock the write set using bounded spinning
     if (!utils_try_lock_set(region, txn->write_set))

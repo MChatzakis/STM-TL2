@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "rw_sets.h"
-//#include "dprint.h"
 
 #include <string.h>
 
@@ -16,34 +15,40 @@ bloom_filter_t *bloom_filter_t_create()
         return NULL;
     }
 
-    memset(bf->filter, 0, sizeof(bool) * BLOOM_FILTER_SIZE); // is sizeof(bool ok??)
+    for (int i = 0; i < BLOOM_FILTER_SIZE; i++)
+    {
+        bf->filter[i] = false;
+    }
     return bf;
 }
 
 void bloom_filter_t_destroy(bloom_filter_t *bloom_filter)
 {
-    // filter is statically allocated, no need for free
     free(bloom_filter);
 }
 
 void bloom_filter_t_add(bloom_filter_t *bloom_filter, uintptr_t address)
 {
-    int index = address % BLOOM_FILTER_SIZE;
+    uintptr_t x = address;
+
+    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    x = x ^ (x >> 31);
+
+    int index = x % BLOOM_FILTER_SIZE;
     bloom_filter->filter[index] = true;
 }
 
 bool bloom_filter_t_contains(bloom_filter_t *bloom_filter, uintptr_t address)
 {
-    return bloom_filter->filter[address % BLOOM_FILTER_SIZE];
+    uintptr_t x = address;
+
+    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    x = x ^ (x >> 31);
+
+    return bloom_filter->filter[x % BLOOM_FILTER_SIZE];
 }
-
-/*void bloom_filter_t_print(bloom_filter_t *bloom_filter){
-    for (int i=0; i<BLOOM_FILTER_SIZE; i++){
-        dprint_clog(COLOR_RESET, stdout, "[%d] ",bloom_filter->filter[i]);
-    }
-    dprint_clog(COLOR_RESET, stdout, "\n");
-}*/
-
 
 set_t *set_t_init()
 {
@@ -55,11 +60,11 @@ set_t *set_t_init()
 
     set->head = NULL;
     set->tail = NULL;
-    set->bloom_filter = NULL;/*bloom_filter_t_create();
+    set->bloom_filter = bloom_filter_t_create();
     if (!set->bloom_filter)
     {
         return NULL;
-    }*/
+    }
 
     return set;
 }
@@ -76,17 +81,16 @@ void set_t_destroy(set_t *set)
         curr = next;
     }
 
-    //bloom_filter_t_destroy(set->bloom_filter);
+    bloom_filter_t_destroy(set->bloom_filter);
 
     free(set);
 }
 
-bool set_t_add(set_t *set, void *addr, void *val, size_t size)
-{
+set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
     if (!node)
     {
-        return false;
+        return NULL;
     }
 
     node->addr = addr;
@@ -94,26 +98,17 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     node->next = NULL;
 
     // Allocate val
-    if (val != NULL) {
-        node->val = (void *)malloc(size); // size is align
+    if (val != NULL)
+    {
+        node->val = (void *)malloc(size);
+        if (!node->val)
+        {
+            return NULL;
+        }
         memcpy(node->val, val, size);
     }
-    
-    if (!set->head)
-    {
-        set->head = node;
-        set->tail = node;
-    }
-    else
-    {
-        set->tail->next = node;
-        set->tail = node;
-    }
 
-    // Update bloom!
-    //bloom_filter_t_add(set->bloom_filter, (uintptr_t)addr);
-
-    return true;
+    return node;
 }
 
 bool set_t_remove(set_t *set, void *addr)
@@ -154,29 +149,62 @@ bool set_t_remove(set_t *set, void *addr)
 
 bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
-    set_node_t *curr = set->head;
-
-    /*if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
+    set_node_t *node = set_t_allocate_node(addr, val, size);
+    if (!node)
     {
-        return set_t_add(set, addr, val, size);
-    }*/
+        return false;
+    }
+
+    if (!set->head)
+    {
+        
+        set->head = node;
+        set->tail = node;
+
+        return true;
+    }
+
+    set_node_t *curr = set->head;
+    set_node_t *prev = NULL;
 
     while (curr)
     {
-        if (curr->addr == addr)
-        {
-            memcpy(curr->val, val, size);
+        if (curr->addr == addr){
+            if (val != NULL)
+            {
+                memcpy(curr->val, val, size);
+            }
+
             return true;
         }
 
+        if (curr->addr > addr)
+        {
+            break;
+        }
+
+        prev = curr;
         curr = curr->next;
     }
 
-    return set_t_add(set, addr, val, size);
+    if (prev == NULL){
+        node->next = set->head;
+        set->head = node;
+    } else {
+        node->next = curr;
+        prev->next = node;
+    }
+
+    if (!curr)
+    {
+        set->tail = node;
+    }
+    
+    return true;
 }
 
 void *set_t_get_val_or_null(set_t *set, void *addr)
-{   
+{
     set_node_t *curr = set->head;
 
     /*if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
@@ -197,23 +225,8 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
     return NULL;
 }
 
-/*void set_t_print(set_t *set, bool print_bloom){
-    set_node_t *curr = set->head;
-
-    if (print_bloom){
-        bloom_filter_t_print(set->bloom_filter);
-    }
-
-    while(curr){
-        dprint_clog(COLOR_RESET, stdout, "[addr %lu, val %lu, size %d] ",curr->addr, curr->val, curr->size);
-        curr = curr -> next;
-    }
-    dprint_clog(COLOR_RESET, stdout, "\n");
-
-    return;
-}*/
-
-void set_t_delete_if_exists(set_t *set, void *addr){
+void set_t_delete_if_exists(set_t *set, void *addr)
+{
     set_node_t *curr = set->head;
     set_node_t *prev = NULL;
 
