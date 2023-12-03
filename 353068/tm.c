@@ -29,7 +29,6 @@
 #include "globals.h"
 #include "tm_types.h"
 #include "utils.h"
-#include "dprint.h"
 #include "rw_sets.h"
 
 #include "macros.h"
@@ -91,6 +90,8 @@ shared_t tm_create(size_t size, size_t align)
  **/
 void tm_destroy(shared_t shared)
 {
+    return;
+
     region_t *region = (region_t *)shared;
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: Starting the deallocation\n");
@@ -109,7 +110,7 @@ void tm_destroy(shared_t shared)
     // Free all the allocated segments
     if (region->allocs != NULL)
     {
-        segment_t *curr = region->allocs;
+        /*segment_t *curr = region->allocs;
         segment_t *next = curr->next;
 
         while (next)
@@ -119,7 +120,7 @@ void tm_destroy(shared_t shared)
             next = curr->next;
         }
 
-        free(curr);
+        free(curr);*/
     }
 
     // Free the region struct
@@ -211,7 +212,7 @@ bool tm_end(shared_t shared, tx_t tx)
     }
 
     // Dealloacate the memory used for this txn
-    txn_t_destroy(txn);
+    //txn_t_destroy(txn);
 
     dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Deallocated. Commit: %d\n", (tx_t)txn, commit_result);
 

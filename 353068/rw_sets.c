@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "rw_sets.h"
-#include "dprint.h"
+//#include "dprint.h"
 
 #include <string.h>
 
@@ -37,12 +37,12 @@ bool bloom_filter_t_contains(bloom_filter_t *bloom_filter, uintptr_t address)
     return bloom_filter->filter[address % BLOOM_FILTER_SIZE];
 }
 
-void bloom_filter_t_print(bloom_filter_t *bloom_filter){
+/*void bloom_filter_t_print(bloom_filter_t *bloom_filter){
     for (int i=0; i<BLOOM_FILTER_SIZE; i++){
         dprint_clog(COLOR_RESET, stdout, "[%d] ",bloom_filter->filter[i]);
     }
     dprint_clog(COLOR_RESET, stdout, "\n");
-}
+}*/
 
 
 set_t *set_t_init()
@@ -55,11 +55,11 @@ set_t *set_t_init()
 
     set->head = NULL;
     set->tail = NULL;
-    set->bloom_filter = bloom_filter_t_create();
+    set->bloom_filter = NULL;/*bloom_filter_t_create();
     if (!set->bloom_filter)
     {
         return NULL;
-    }
+    }*/
 
     return set;
 }
@@ -76,7 +76,7 @@ void set_t_destroy(set_t *set)
         curr = next;
     }
 
-    bloom_filter_t_destroy(set->bloom_filter);
+    //bloom_filter_t_destroy(set->bloom_filter);
 
     free(set);
 }
@@ -111,7 +111,7 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size)
     }
 
     // Update bloom!
-    bloom_filter_t_add(set->bloom_filter, (uintptr_t)addr);
+    //bloom_filter_t_add(set->bloom_filter, (uintptr_t)addr);
 
     return true;
 }
@@ -197,7 +197,7 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
     return NULL;
 }
 
-void set_t_print(set_t *set, bool print_bloom){
+/*void set_t_print(set_t *set, bool print_bloom){
     set_node_t *curr = set->head;
 
     if (print_bloom){
@@ -211,7 +211,7 @@ void set_t_print(set_t *set, bool print_bloom){
     dprint_clog(COLOR_RESET, stdout, "\n");
 
     return;
-}
+}*/
 
 void set_t_delete_if_exists(set_t *set, void *addr){
     set_node_t *curr = set->head;

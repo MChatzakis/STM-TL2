@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 #include "globals.h"
-#include "dprint.h"
 
 typedef struct
 {
@@ -19,7 +18,7 @@ void bloom_filter_t_destroy(bloom_filter_t *bloom_filter);
 void bloom_filter_t_add(bloom_filter_t *bloom_filter, uintptr_t address);
 bool bloom_filter_t_contains(bloom_filter_t *bloom_filter, uintptr_t address);
 
-void bloom_filter_t_print(bloom_filter_t *bloom_filter);
+//void bloom_filter_t_print(bloom_filter_t *bloom_filter);
 
 typedef struct set_node
 {
@@ -50,4 +49,4 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size);
 void *set_t_get_val_or_null(set_t *set, void *addr);
 void set_t_delete_if_exists(set_t *set, void *addr);
 
-void set_t_print(set_t *set, bool print_bloom);
+//void set_t_print(set_t *set, bool print_bloom);

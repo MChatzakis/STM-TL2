@@ -33,3 +33,7 @@ bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, in
 void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int wv);
 void utils_segment_list_insert(region_t *region, segment_t *sn);
 void utils_segment_list_remove(region_t *region, segment_t *sn);
+
+
+void dprint_clog(char *color, FILE *stream, const char *str, ...);
+void dprint_cwarn(char *color, FILE *stream, const char *str, ...);

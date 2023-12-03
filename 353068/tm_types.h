@@ -5,7 +5,6 @@
 
 #include "globals.h"
 #include "locks.h"
-#include "dprint.h"
 
 /**
  * @brief Segment of dynamically allocated memory.
