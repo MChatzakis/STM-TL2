@@ -6,7 +6,7 @@
  *
  * MIT License
  *
- * Copyright (c) [year] [fullname]
+ * Copyright (c) 2023 Manos Chatzakis (manosxatzakiss2000@gmail.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal 
@@ -337,7 +337,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             void *targ_addr = (char *)target + i; // Target is the memory that the value of the TM words will be stored
 
             // Check if the source_word appears in the write set.
-            void *val = set_t_get_val_or_null(txn->write_set, word_addr);
+            void *val = write_set_t_get_val(txn->write_set, word_addr);
             if (val != NULL)
             {
                 // If this txn plans to write this word, update it with the current value
@@ -368,7 +368,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 return false;
             }
 
-            if (unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size)))
+            if (unlikely(!read_set_t_add(txn->read_set, word_addr)))
             {
                 dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
                 txn_t_destroy(txn);
@@ -425,7 +425,7 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
         dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Word write from %lu to %lu\n", (tx_t)txn, source_addr, word_addr);
 
         // Add or update the entry of word_addr in the write set, setting the value to source_addr
-        if (unlikely(!set_t_add_or_update(txn->write_set, word_addr, source_addr, word_size)))
+        if (unlikely(!write_set_t_add(txn->write_set, word_addr, source_addr, word_size)))
         {
             dprint_cwarn(COLOR_RESET, stdout, "tm_write[%lu]:  Something went wrong when adding data to write-set.\n", (tx_t)txn);
             txn_t_destroy(txn);

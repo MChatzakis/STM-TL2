@@ -13,17 +13,17 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     txn->is_ro = is_ro;
     txn->rv = rv;
     txn->wv = wv;
-    txn->read_set = set_t_init();
+    txn->read_set = read_set_t_init();
     if (unlikely(!txn->read_set))
     {
         free(txn);
         return NULL;
     }
 
-    txn->write_set = set_t_init();
+    txn->write_set = write_set_t_init();
     if (unlikely(!txn->write_set))
     {
-        set_t_destroy(txn->read_set);
+        read_set_t_destroy(txn->read_set);
         free(txn);
         return NULL;
     }
@@ -33,8 +33,8 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
 
 void txn_t_destroy(txn_t *txn)
 {
-    set_t_destroy(txn->read_set);
-    set_t_destroy(txn->write_set);
+    read_set_t_destroy(txn->read_set);
+    write_set_t_destroy(txn->write_set);
 
     free(txn);
 }
@@ -49,9 +49,9 @@ versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *lo
     return &locks[x % VWSL_NUM];
 }
 
-bool utils_try_lock_set(region_t *region, set_t *set)
+bool utils_try_lock_set(region_t *region, write_set_t *set)
 {
-    set_node_t *curr = set->head;
+    write_set_node_t *curr = set->head;
 
     while (curr)
     {
@@ -68,10 +68,10 @@ bool utils_try_lock_set(region_t *region, set_t *set)
     return true;
 }
 
-void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, set_node_t *end)
+void utils_unlock_set(region_t *region, write_set_t *unused(set), write_set_node_t *start, write_set_node_t *end)
 {
     // Note: to unlock the full set, start=set->head and end=NULL.
-    set_node_t *curr = start;
+    write_set_node_t *curr = start;
 
     while (curr)
     {
@@ -83,7 +83,6 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
         }
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -140,7 +139,7 @@ bool utils_check_commit(region_t *region, txn_t *txn)
 
 bool utils_validate_read_set(region_t *region, read_set_t *set, int rv)
 {
-    set_node_t *curr = set->head;
+    read_set_node_t *curr = set->head;
 
     while (curr)
     {
@@ -169,7 +168,7 @@ bool utils_validate_versioned_write_spinlock(versioned_write_spinlock_t *vws, in
 
 void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int wv)
 {
-    set_node_t *curr = set->head;
+    write_set_node_t *curr = set->head;
 
     while (curr)
     {
