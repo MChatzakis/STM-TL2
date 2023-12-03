@@ -41,17 +41,10 @@ void txn_t_destroy(txn_t *txn)
 
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
 {
-    // Choose a prime number for better distribution
-    
     uintptr_t x = (uintptr_t)addr;
-    
-    //x = ((x >> 16) ^ x) * 0x45d9f3b;
-    //x = ((x >> 16) ^ x) * 0x45d9f3b;
-    //x = (x >> 16) ^ x;
-
-    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    x = x ^ (x >> 31);
+    //x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    //x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    //x = x ^ (x >> 31);
 
     return &locks[x % VWSL_NUM];
 }
@@ -91,7 +84,6 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
         
-        assert(atomic_load(&vwsl->lock_and_version) & 0x1);
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -191,7 +183,6 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
         memcpy(curr->addr, curr->val, curr->size);
 
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        assert(atomic_load(&vws->lock_and_version) & 0x1);
         versioned_write_spinlock_t_update_version(vws, wv); // Updates and unlocks
 
         curr = curr->next;
@@ -200,17 +191,15 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
 void dprint_clog(char *color, FILE *stream, const char *str, ...)
 {
-    if (!DEBUG_PRINT)
+    if (unlikely(DEBUG_PRINT))
     {
-        return;
+        va_list args;
+        va_start(args, str);
+        vfprintf(stream, color, args);
+        vfprintf(stream, str, args);
+        vfprintf(stream, COLOR_RESET, args);
+        va_end(args);
     }
-
-    va_list args;
-    va_start(args, str);
-    vfprintf(stream, color, args);
-    vfprintf(stream, str, args);
-    vfprintf(stream, COLOR_RESET, args);
-    va_end(args);
 }
 
 void dprint_cwarn(char *color, FILE *stream, const char *str, ...)

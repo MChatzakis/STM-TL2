@@ -90,8 +90,6 @@ shared_t tm_create(size_t size, size_t align)
  **/
 void tm_destroy(shared_t shared)
 {
-    return;
-
     region_t *region = (region_t *)shared;
 
     dprint_clog(COLOR_RED, stdout, "tm_destroy: Starting the deallocation\n");
@@ -110,7 +108,7 @@ void tm_destroy(shared_t shared)
     // Free all the allocated segments
     if (region->allocs != NULL)
     {
-        /*segment_t *curr = region->allocs;
+        segment_t *curr = region->allocs;
         segment_t *next = curr->next;
 
         while (next)
@@ -120,7 +118,7 @@ void tm_destroy(shared_t shared)
             next = curr->next;
         }
 
-        free(curr);*/
+        free(curr);
     }
 
     // Free the region struct
@@ -212,7 +210,7 @@ bool tm_end(shared_t shared, tx_t tx)
     }
 
     // Dealloacate the memory used for this txn
-    //txn_t_destroy(txn);
+    txn_t_destroy(txn);
 
     dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Deallocated. Commit: %d\n", (tx_t)txn, commit_result);
 
@@ -265,6 +263,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             if (l & 0x1 || (readv > txn->rv))
             {
                 //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                txn_t_destroy(txn);
                 return false;
             }
 
@@ -275,6 +274,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             if (n & 0x1 || after_readv != readv)
             {
                 //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
+                txn_t_destroy(txn);
                 return false;
             }
         }
@@ -407,9 +407,6 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
             txn_t_destroy(txn);
             exit(EXIT_FAILURE);
         }
-
-        // Delete the entry of word_addr from the read set, if it exists
-        //set_t_delete_if_exists(txn->read_set, word_addr);
     }
 
     return true;

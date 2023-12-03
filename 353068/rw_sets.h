@@ -33,5 +33,3 @@ bool set_t_add(set_t *set, void *addr, void *val, size_t size);
 bool set_t_remove(set_t *set, void *addr);
 bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size);
 void *set_t_get_val_or_null(set_t *set, void *addr);
-void set_t_delete_if_exists(set_t *set, void *addr);
-void set_t_mergesort(set_t *set);
