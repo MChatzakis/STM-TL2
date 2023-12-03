@@ -7,49 +7,6 @@
 
 #include <string.h>
 
-bloom_filter_t *bloom_filter_t_create()
-{
-    bloom_filter_t *bf = (bloom_filter_t *)malloc(sizeof(bloom_filter_t));
-    if (!bf)
-    {
-        return NULL;
-    }
-
-    for (int i = 0; i < BLOOM_FILTER_SIZE; i++)
-    {
-        bf->filter[i] = false;
-    }
-    return bf;
-}
-
-void bloom_filter_t_destroy(bloom_filter_t *bloom_filter)
-{
-    free(bloom_filter);
-}
-
-void bloom_filter_t_add(bloom_filter_t *bloom_filter, uintptr_t address)
-{
-    uintptr_t x = address;
-
-    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    x = x ^ (x >> 31);
-
-    int index = x % BLOOM_FILTER_SIZE;
-    bloom_filter->filter[index] = true;
-}
-
-bool bloom_filter_t_contains(bloom_filter_t *bloom_filter, uintptr_t address)
-{
-    uintptr_t x = address;
-
-    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    x = x ^ (x >> 31);
-
-    return bloom_filter->filter[x % BLOOM_FILTER_SIZE];
-}
-
 set_t *set_t_init()
 {
     set_t *set = (set_t *)malloc(sizeof(set_t));
@@ -60,11 +17,6 @@ set_t *set_t_init()
 
     set->head = NULL;
     set->tail = NULL;
-    set->bloom_filter = bloom_filter_t_create();
-    if (!set->bloom_filter)
-    {
-        return NULL;
-    }
 
     return set;
 }
@@ -80,8 +32,6 @@ void set_t_destroy(set_t *set)
         free(curr);
         curr = next;
     }
-
-    bloom_filter_t_destroy(set->bloom_filter);
 
     free(set);
 }
@@ -207,16 +157,16 @@ void *set_t_get_val_or_null(set_t *set, void *addr)
 {
     set_node_t *curr = set->head;
 
-    /*if (!bloom_filter_t_contains(set->bloom_filter, (uintptr_t)addr))
-    {
-        return NULL;
-    }*/
-
     while (curr)
     {
         if (curr->addr == addr)
         {
             return curr->val;
+        }
+
+        if (curr->addr > addr)
+        {
+            return NULL;
         }
 
         curr = curr->next;
