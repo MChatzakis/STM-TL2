@@ -130,19 +130,10 @@ void tm_destroy(shared_t shared)
     }
 
     // Free all the allocated segments
-    if (region->allocs != NULL)
-    {
-        segment_t *curr = region->allocs;
-        segment_t *next = curr->next;
-
-        while (next)
-        {
-            free(curr);
-            curr = next;
-            next = curr->next;
-        }
-
-        free(curr);
+    while (region->allocs) { // Free allocated segments
+        segment_list tail = region->allocs->next;
+        free(region->allocs);
+        region->allocs = tail;
     }
 
     // Free the region struct
@@ -286,7 +277,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             int readv = l >> 1;
             if (l & 0x1 || (readv > txn->rv))
             {
-                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 txn_t_destroy(txn);
                 return false;
             }
@@ -297,7 +287,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             int after_readv = n >> 1;
             if (n & 0x1 || after_readv != readv)
             {
-                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 txn_t_destroy(txn);
                 return false;
             }
@@ -347,12 +336,10 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             }
 
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
-            //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Validated lock of address %lu\n", (tx_t)txn, word_addr);
             int l = versioned_write_spinlock_t_load(vws);
             int readv = l >> 1;
             if (l & 0x1 || (readv > txn->rv))
             {
-                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 txn_t_destroy(txn);
                 return false;
             }
@@ -363,7 +350,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             int after_readv = n >> 1;
             if (n & 0x1 || after_readv != readv)
             {
-                //dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Failed to validate spinlock. Aborting...\n", (tx_t)txn);
                 txn_t_destroy(txn);
                 return false;
             }
@@ -415,7 +401,6 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     //
 
     // Iterate the words of the segment (word_size = align)
-    // size_t align = region->align;
     for (size_t i = 0; i < size; i += region->align)
     {
         void *word_addr = (char *)target + i;   // Target is the address of the segment in the TM

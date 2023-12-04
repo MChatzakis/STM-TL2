@@ -23,7 +23,7 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     txn->write_set = set_t_init();
     if (unlikely(!txn->write_set))
     {
-        set_t_destroy(txn->read_set);
+        set_t_destroy(txn->read_set/*, false*/);
         free(txn);
         return NULL;
     }
@@ -33,8 +33,8 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
 
 void txn_t_destroy(txn_t *txn)
 {
-    set_t_destroy(txn->read_set);
-    set_t_destroy(txn->write_set);
+    set_t_destroy(txn->read_set/*, false*/);
+    set_t_destroy(txn->write_set/*, true*/);
 
     free(txn);
 }

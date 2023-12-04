@@ -3,7 +3,9 @@
 #define DEBUG_PRINT false
 #define ENABLE_WARNINGS true
 
-#define VWSL_NUM 104857600
+//#define VWSL_NUM 104857600
+#define VWSL_NUM 100000000
+
 
 #define LOCKED true
 #define UNLOCKED false

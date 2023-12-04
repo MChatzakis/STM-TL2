@@ -10,7 +10,7 @@
 set_t *set_t_init()
 {
     set_t *set = (set_t *)malloc(sizeof(set_t));
-    if (!set)
+    if (unlikely(!set))
     {
         return NULL;
     }
@@ -21,7 +21,7 @@ set_t *set_t_init()
     return set;
 }
 
-void set_t_destroy(set_t *set)
+void set_t_destroy(set_t *set/*, bool is_write_set*/)
 {
     set_node_t *curr = set->head;
     set_node_t *next = NULL;
@@ -29,6 +29,13 @@ void set_t_destroy(set_t *set)
     while (curr)
     {
         next = curr->next;
+
+        if (curr->val != NULL /*&& is_write_set*/)
+        {
+            free(curr->val);
+        }
+        curr->val = NULL;
+
         free(curr);
         curr = next;
     }
@@ -38,7 +45,7 @@ void set_t_destroy(set_t *set)
 
 set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
-    if (!node)
+    if (unlikely(!node))
     {
         return NULL;
     }
@@ -46,12 +53,13 @@ set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
     node->addr = addr;
     node->size = size;
     node->next = NULL;
+    node->val = NULL;
 
     // Allocate val
     if (val != NULL)
     {
         node->val = (void *)malloc(size);
-        if (!node->val)
+        if (unlikely(!node->val))
         {
             return NULL;
         }
@@ -64,14 +72,13 @@ set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
 bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
     set_node_t *node = set_t_allocate_node(addr, val, size);
-    if (!node)
+    if (unlikely(!node))
     {
         return false;
     }
 
     if (!set->head)
     {
-        
         set->head = node;
         set->tail = node;
 
