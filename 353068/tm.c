@@ -116,8 +116,6 @@ void tm_destroy(shared_t shared)
 {
     region_t *region = (region_t *)shared;
 
-    dprint_clog(COLOR_RED, stdout, "tm_destroy: Starting the deallocation\n");
-
     // Free the start address of the region
     free(region->start);
 
@@ -138,8 +136,6 @@ void tm_destroy(shared_t shared)
 
     // Free the region struct
     free(region);
-
-    dprint_clog(COLOR_RED, stdout, "tm_destroy: STM deallocated\n");
 }
 
 /** [thread-safe] Return the start address of the first allocated segment in the shared memory region.
@@ -281,6 +277,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 return false;
             }
 
+            assert(word_addr != NULL);
+            assert(targ_addr != NULL);
             memcpy(targ_addr, word_addr, word_size);
 
             int n = versioned_write_spinlock_t_load(vws);
@@ -344,6 +342,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 return false;
             }
 
+            assert(word_addr != NULL);
+            assert(targ_addr != NULL);
             memcpy(targ_addr, word_addr, word_size);
 
             int n = versioned_write_spinlock_t_load(vws);
@@ -356,7 +356,6 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
 
             if (unlikely(!set_t_add_or_update(txn->read_set, word_addr, NULL, word_size)))
             {
-                dprint_cwarn(COLOR_RESET, stdout, "tm_read[%lu]:  Something went wrong when adding data to read-set.\n", (tx_t)txn);
                 txn_t_destroy(txn);
                 exit(EXIT_FAILURE);
             }

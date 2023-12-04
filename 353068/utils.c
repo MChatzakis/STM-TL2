@@ -173,6 +173,8 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
     while (curr)
     {
+        assert(curr->addr != NULL);
+        assert(curr->val != NULL);
         memcpy(curr->addr, curr->val, curr->size);
 
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);

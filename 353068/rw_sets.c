@@ -2,10 +2,10 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 #include "rw_sets.h"
 
-#include <string.h>
 
 set_t *set_t_init()
 {
@@ -21,7 +21,7 @@ set_t *set_t_init()
     return set;
 }
 
-void set_t_destroy(set_t *set/*, bool is_write_set*/)
+void set_t_destroy(set_t *set)
 {
     set_node_t *curr = set->head;
     set_node_t *next = NULL;
@@ -30,7 +30,7 @@ void set_t_destroy(set_t *set/*, bool is_write_set*/)
     {
         next = curr->next;
 
-        if (curr->val != NULL /*&& is_write_set*/)
+        if (curr->val != NULL)
         {
             free(curr->val);
         }
@@ -43,7 +43,8 @@ void set_t_destroy(set_t *set/*, bool is_write_set*/)
     free(set);
 }
 
-set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
+set_node_t *set_t_allocate_node(void *addr, void *val, size_t size)
+{
     set_node_t *node = (set_node_t *)malloc(sizeof(set_node_t));
     if (unlikely(!node))
     {
@@ -71,26 +72,13 @@ set_node_t * set_t_allocate_node(void *addr, void *val, size_t size){
 
 bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
 {
-    set_node_t *node = set_t_allocate_node(addr, val, size);
-    if (unlikely(!node))
-    {
-        return false;
-    }
-
-    if (!set->head)
-    {
-        set->head = node;
-        set->tail = node;
-
-        return true;
-    }
-
     set_node_t *curr = set->head;
     set_node_t *prev = NULL;
 
     while (curr)
     {
-        if (curr->addr == addr){
+        if (curr->addr == addr)
+        {
             if (val != NULL)
             {
                 memcpy(curr->val, val, size);
@@ -108,10 +96,19 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
         curr = curr->next;
     }
 
-    if (prev == NULL){
+    set_node_t *node = set_t_allocate_node(addr, val, size);
+    if (unlikely(!node))
+    {
+        return false;
+    }
+
+    if (prev == NULL)
+    {
         node->next = set->head;
         set->head = node;
-    } else {
+    }
+    else
+    {
         node->next = curr;
         prev->next = node;
     }
@@ -120,7 +117,7 @@ bool set_t_add_or_update(set_t *set, void *addr, void *val, size_t size)
     {
         set->tail = node;
     }
-    
+
     return true;
 }
 
