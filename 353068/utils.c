@@ -23,7 +23,7 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
     txn->write_set = set_t_init();
     if (unlikely(!txn->write_set))
     {
-        set_t_destroy(txn->read_set/*, false*/);
+        set_t_destroy(txn->read_set);
         free(txn);
         return NULL;
     }
@@ -33,8 +33,8 @@ txn_t *txn_t_init(bool is_ro, int rv, int wv)
 
 void txn_t_destroy(txn_t *txn)
 {
-    set_t_destroy(txn->read_set/*, false*/);
-    set_t_destroy(txn->write_set/*, true*/);
+    set_t_destroy(txn->read_set);
+    set_t_destroy(txn->write_set);
 
     free(txn);
 }
@@ -42,10 +42,6 @@ void txn_t_destroy(txn_t *txn)
 versioned_write_spinlock_t *utils_get_mapped_lock(versioned_write_spinlock_t *locks, void *addr)
 {
     uintptr_t x = (uintptr_t)addr;
-    //x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
-    //x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
-    //x = x ^ (x >> 31);
-
     return &locks[x % VWSL_NUM];
 }
 
@@ -83,7 +79,6 @@ void utils_unlock_set(region_t *region, set_t *unused(set), set_node_t *start, s
         }
 
         versioned_write_spinlock_t *vwsl = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        
         versioned_write_spinlock_t_unlock(vwsl);
 
         curr = curr->next;
@@ -109,9 +104,9 @@ bool utils_check_commit(region_t *region, txn_t *txn)
     //      b. Release the lock
     //
 
-    // The write set it ordered here.
+    // The write set it ordered here. No need for sorting.
 
-    // Try to lock the write set using bounded spinning
+    // Try to lock the write set
     if (!utils_try_lock_set(region, txn->write_set))
     {
         return ABORT;
@@ -173,12 +168,10 @@ void utils_update_and_unlock_write_set(region_t *region, write_set_t *set, int w
 
     while (curr)
     {
-        assert(curr->addr != NULL);
-        assert(curr->val != NULL);
         memcpy(curr->addr, curr->val, curr->size);
 
         versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, curr->addr);
-        versioned_write_spinlock_t_update_version(vws, wv); // Updates and unlocks
+        versioned_write_spinlock_t_update_version(vws, wv); // Updates and unlocks the lock
 
         curr = curr->next;
     }

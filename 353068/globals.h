@@ -6,7 +6,6 @@
 #define VWSL_NUM 104857600
 //#define VWSL_NUM 10050000
 
-
 #define LOCKED true
 #define UNLOCKED false
 

@@ -33,6 +33,7 @@
  * 
  * Every structure is implemented from scratch, including the locks, the sets, the versioned write spinlocks, etc.
  *
+ * Memory leaks are verified using valgrind (on a Linux machine) and leaks (on a Macbook).
  **/
 
 // Requested features
@@ -104,8 +105,6 @@ shared_t tm_create(size_t size, size_t align)
         versioned_write_spinlock_t_init(&region->versioned_write_spinlock[i]);
     }
 
-    dprint_clog(COLOR_GREEN, stdout, "tm_create: TM allocated with size=%d and align=%d\n", size, align);
-
     return region;
 }
 
@@ -128,7 +127,7 @@ void tm_destroy(shared_t shared)
     }
 
     // Free all the allocated segments
-    while (region->allocs) { // Free allocated segments
+    while (region->allocs) {
         segment_list tail = region->allocs->next;
         free(region->allocs);
         region->allocs = tail;
@@ -175,9 +174,7 @@ tx_t tm_begin(shared_t shared, bool is_ro)
     region_t *region = (region_t *)shared;
 
     // Here, we create a new transaction and return a pointer to the struct representing the transaction
-
-    // TL2 Algorithm:
-    // Sample load the current value of the global version clock as rv
+    // TL2 Algorithm: Sample load the current value of the global version clock as rv
 
     txn_t *txn = txn_t_init(is_ro, global_versioned_clock_t_get_clock(&region->global_versioned_clock), -1);
     if (unlikely(!txn))
@@ -185,8 +182,6 @@ tx_t tm_begin(shared_t shared, bool is_ro)
         dprint_cwarn(COLOR_RESET, stdout, "tm_begin: Could not allocate a new transaction!\n");
         return invalid_tx;
     }
-
-    // dprint_clog(COLOR_RESET, stdout, "tm_begin[%lu]: rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
 
     return (tx_t)txn;
 }
@@ -202,21 +197,17 @@ bool tm_end(shared_t shared, tx_t tx)
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
 
-    dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: (Begin) rv: %d, wv: %d, ro: %d\n", (tx_t)txn, txn->rv, txn->wv, txn->is_ro);
-
     bool commit_result;
     if (txn->is_ro || txn->write_set->head == NULL)
     {
         // Read-only txns are validated each time they read a word
         // Reaching this point means that all the reads are succesfully validated
-        // Thus, it can commit right away
-        dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Read only txn, commiting.\n", (tx_t)txn);
+        // Thus, it can commit right away. Same goes for write txns that did not write anything.
         commit_result = COMMIT;
     }
     else
     {
-        // Check commit using TL2 instructions
-        dprint_clog(COLOR_RESET, stdout, "tm_end  [%lu]: Write txn, initiating commiting actions!.\n", (tx_t)txn);
+        // Check commit using TL2 algorithm
         commit_result = utils_check_commit(region, txn);
     }
 
@@ -269,6 +260,8 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
 
             // Get the versioned write spinlock for this word and validate it
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
+            
+            // Pre-Validate the lock
             int l = versioned_write_spinlock_t_load(vws);
             int readv = l >> 1;
             if (l & 0x1 || (readv > txn->rv))
@@ -277,10 +270,9 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 return false;
             }
 
-            assert(word_addr != NULL);
-            assert(targ_addr != NULL);
             memcpy(targ_addr, word_addr, word_size);
 
+            // Post-Validate the lock
             int n = versioned_write_spinlock_t_load(vws);
             int after_readv = n >> 1;
             if (n & 0x1 || after_readv != readv)
@@ -328,12 +320,13 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
             if (val != NULL)
             {
                 // If this txn plans to write this word, update it with the current value
-                dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did appear in the write set.\n", (tx_t)txn);
                 memcpy(targ_addr, val, word_size);
                 continue;
             }
 
             versioned_write_spinlock_t *vws = utils_get_mapped_lock(region->versioned_write_spinlock, word_addr);
+            
+            // Pre-Validate the lock
             int l = versioned_write_spinlock_t_load(vws);
             int readv = l >> 1;
             if (l & 0x1 || (readv > txn->rv))
@@ -342,10 +335,9 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 return false;
             }
 
-            assert(word_addr != NULL);
-            assert(targ_addr != NULL);
             memcpy(targ_addr, word_addr, word_size);
 
+            // Post-Validate the lock
             int n = versioned_write_spinlock_t_load(vws);
             int after_readv = n >> 1;
             if (n & 0x1 || after_readv != readv)
@@ -359,12 +351,7 @@ bool tm_read(shared_t shared, tx_t tx, void const *source, size_t size, void *ta
                 txn_t_destroy(txn);
                 exit(EXIT_FAILURE);
             }
-
-            // Else, just write the value that this word already has
-            dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Value to read did not appear in the write set.\n", (tx_t)txn);
         }
-
-        dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Write txn, validated all locks and updated readset\n", (tx_t)txn);
     }
 
     dprint_clog(COLOR_RESET, stdout, "tm_read [%lu]:  Actions passed, txn can continue!\n", (tx_t)txn);
@@ -385,8 +372,6 @@ bool tm_write(shared_t shared, tx_t tx, void const *source, size_t size, void *t
     // Infer the region and txn that this write is associated with
     region_t *region = (region_t *)shared;
     txn_t *txn = (txn_t *)tx;
-
-    dprint_clog(COLOR_RESET, stdout, "tm_write[%lu]:  Writing from %lu to %lu\n", (tx_t)txn, source, target);
 
     //
     // TL2 Algorithm (Write intstruction):
