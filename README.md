@@ -1,5 +1,5 @@
 # Software Transactional Memory implementing Transactional Locking 2 (TL2) algorithm.
-This repository contains an implementation of a Software Transactional Memory according to the description of Transactional Locking 2 (TL2) algorithm [Dice et. al](https://dcl.epfl.ch/site/_media/education/4.pdf) using C11 atomics.
+This repository contains an implementation of a Software Transactional Memory according to the description of Transactional Locking 2 (TL2) algorithm ([Dice et. al](https://dcl.epfl.ch/site/_media/education/4.pdf)) using C11 atomics.
 
 It was developed by Manos Chatzakis (emmanouil.chatzakis@epfl.ch) at EPFL in December 2023.
 
