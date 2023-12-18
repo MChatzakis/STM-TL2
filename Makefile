@@ -5,8 +5,8 @@ EXT_HPP  := h hh hpp hxx h++
 EXT_C    := c
 EXT_CXX  := C cc cpp cxx c++
 
-INCLUDE_DIR := ../include
-SOURCE_DIR  := .
+INCLUDE_DIR := ./include
+SOURCE_DIR  := ./src
 
 WILD_EXT  = $(strip $(foreach EXT,$($(1)),$(wildcard $(2)/*.$(EXT))))
 
